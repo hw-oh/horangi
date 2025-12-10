@@ -1,23 +1,26 @@
 """
 한국어 벤치마크 모듈
 
-각 벤치마크는 Inspect AI Task로 구현되어 있습니다.
-inspect_evals 벤치마크를 기반으로 데이터 소스만 교체합니다.
+config.py의 설정을 기반으로 벤치마크를 생성합니다.
+
+사용법:
+    from horangi.benchmarks import create_benchmark
+    
+    task = create_benchmark("ko_hellaswag", limit=10)
+
+새 벤치마크 추가:
+    1. config.py의 BENCHMARKS에 설정 추가
+    2. (필요 시) scorers.py에 커스텀 scorer 추가
+    3. eval_tasks.py에 @task 함수 추가
 """
 
-# KoHellaSwag (Weave 데이터)
-from horangi.benchmarks.ko_hellaswag import (
-    ko_hellaswag,
-    ko_hellaswag_inherited,
-)
-
-# KoAIME2025 (로컬 JSONL 데이터)
-from horangi.benchmarks.aime2025 import ko_aime2025
+from horangi.benchmarks.config import BENCHMARKS, list_benchmarks
+from horangi.benchmarks.factory import create_benchmark
 
 __all__ = [
-    # KoHellaSwag
-    "ko_hellaswag",
-    "ko_hellaswag_inherited",
-    # KoAIME2025
-    "ko_aime2025",
+    # Factory
+    "create_benchmark",
+    # Config
+    "BENCHMARKS",
+    "list_benchmarks",
 ]

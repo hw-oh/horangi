@@ -6,6 +6,9 @@ inspect-wandb[weave]>=0.1.0
 pandas>=2.0.0
 jsonlines>=4.0.0
 
+# IFEval dependency
+instruction_following_eval @ git+https://github.com/josejg/instruction_following_eval.git
+
 # Model providers (install as needed)
 openai>=1.0.0
 anthropic>=0.20.0
