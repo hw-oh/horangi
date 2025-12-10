@@ -7,16 +7,13 @@ Inspect AI와 WandB/Weave를 통합하여 한국어 LLM 평가를 수행합니�
 __version__ = "0.1.0"
 
 from horangi.benchmarks import (
-    korean_qa,
-    korean_reasoning,
-    korean_knowledge,
-    korean_commonsense,
+    ko_hellaswag,
+    ko_hellaswag_inherited,
+    ko_aime2025,
 )
 
 __all__ = [
-    "korean_qa",
-    "korean_reasoning", 
-    "korean_knowledge",
-    "korean_commonsense",
+    "ko_hellaswag",
+    "ko_hellaswag_inherited",
+    "ko_aime2025",
 ]
-
