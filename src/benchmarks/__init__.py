@@ -32,8 +32,9 @@ from benchmarks.ko_hallulens_generated import CONFIG as ko_hallulens_generated
 from benchmarks.ko_hallulens_mixed import CONFIG as ko_hallulens_mixed
 from benchmarks.ko_hallulens_nonexistent import CONFIG as ko_hallulens_nonexistent
 # BFCL 벤치마크
-from benchmarks.bfcl_extended import CONFIG as bfcl_extended
-from benchmarks.bfcl_text import CONFIG as bfcl_text
+from benchmarks.bfcl import CONFIG as bfcl
+from benchmarks.bfcl_extended import CONFIG as bfcl_extended  # 하위 호환성
+from benchmarks.bfcl_text import CONFIG as bfcl_text  # 하위 호환성
 # MT-Bench
 from benchmarks.mtbench_ko import CONFIG as mtbench_ko
 # SWE-bench
@@ -68,8 +69,9 @@ BENCHMARK_DESCRIPTIONS: dict[str, str] = {
     "ko_hallulens_mixed": "가상 엔티티 거부 (혼합)",
     "ko_hallulens_nonexistent": "가상 엔티티 거부 (통합)",
     # Function Calling
-    "bfcl_extended": "함수 호출 (Native Tool)",
-    "bfcl_text": "함수 호출 (Text-based)",
+    "bfcl": "함수 호출 (통합, 모델 설정에 따라 자동 선택)",
+    "bfcl_extended": "함수 호출 (Native Tool) [deprecated]",
+    "bfcl_text": "함수 호출 (Text-based) [deprecated]",
     # 대화
     "mtbench_ko": "멀티턴 대화 평가",
     # 코딩
@@ -101,8 +103,9 @@ BENCHMARKS: dict = {
     "ko_hallulens_mixed": ko_hallulens_mixed,
     "ko_hallulens_nonexistent": ko_hallulens_nonexistent,
     # BFCL 벤치마크
-    "bfcl_extended": bfcl_extended,
-    "bfcl_text": bfcl_text,
+    "bfcl": bfcl,
+    "bfcl_extended": bfcl_extended,  # 하위 호환성
+    "bfcl_text": bfcl_text,  # 하위 호환성
     # MT-Bench
     "mtbench_ko": mtbench_ko,
     # SWE-bench

@@ -331,11 +331,36 @@ def ko_hallulens_nonexistent(
 # =============================================================================
 
 @task
+def bfcl(
+    shuffle: bool = False,
+    limit: int | None = None,
+    use_native_tools: bool = True,
+) -> Task:
+    """BFCL - Function Calling 벤치마크 (통합)
+    
+    모델의 tool calling 지원 여부에 따라 solver를 선택합니다.
+    - use_native_tools=True (기본): Native Tool Calling (OpenAI, Claude, Gemini 등)
+    - use_native_tools=False: Text-based (EXAONE, 일부 오픈소스 등)
+    
+    모델 설정 파일에서 자동으로 설정 가능:
+        benchmarks:
+          bfcl:
+            use_native_tools: false
+    """
+    return create_benchmark(
+        name="bfcl",
+        shuffle=shuffle,
+        limit=limit,
+        use_native_tools=use_native_tools,
+    )
+
+
+@task
 def bfcl_extended(
     shuffle: bool = False,
     limit: int | None = None,
 ) -> Task:
-    """BFCL Extended - Function Calling 벤치마크 (Native Tool Calling)
+    """[DEPRECATED] BFCL Extended - 대신 bfcl 벤치마크 사용 권장
     
     Tool calling 지원 모델용: OpenAI, Claude, Gemini 등
     """
@@ -351,10 +376,9 @@ def bfcl_text(
     shuffle: bool = False,
     limit: int | None = None,
 ) -> Task:
-    """BFCL Text - Function Calling 벤치마크 (Text-based)
+    """[DEPRECATED] BFCL Text - 대신 bfcl --use_native_tools=false 사용 권장
     
     Tool calling 미지원 모델용: EXAONE, 일부 오픈소스 등
-    프롬프트 기반으로 JSON 형식의 함수 호출을 유도합니다.
     """
     return create_benchmark(
         name="bfcl_text",

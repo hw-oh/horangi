@@ -283,6 +283,7 @@ def create_benchmark(
     limit: int | None = None,
     split: str | None = None,
     use_korean_prompt: bool = True,
+    use_native_tools: bool | None = None,
     **kwargs,
 ) -> Task:
     """
@@ -290,8 +291,24 @@ def create_benchmark(
     
     base가 있으면: 원본 Task를 가져와서 dataset만 override
     base가 없으면: config의 solver/scorer로 새 Task 생성
+    
+    Args:
+        name: 벤치마크 이름
+        shuffle: 데이터 셔플 여부
+        limit: 샘플 수 제한
+        split: 데이터 분할
+        use_korean_prompt: 한국어 프롬프트 사용 여부
+        use_native_tools: tool calling 사용 여부 (BFCL 등에서 사용)
+                         None이면 기본값 (native) 사용
     """
     config = get_benchmark_config(name)
+    
+    # 동적 solver 선택 (BFCL 등)
+    if use_native_tools is not None and config.get("metadata", {}).get("supports_dynamic_solver"):
+        if use_native_tools:
+            config["solver"] = config.get("metadata", {}).get("native_solver", config.get("solver"))
+        else:
+            config["solver"] = config.get("metadata", {}).get("text_solver", config.get("solver"))
     base_path = config.get("base", "")
     
     # =========================================================================

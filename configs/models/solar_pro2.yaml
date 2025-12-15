@@ -1,0 +1,44 @@
+# =============================================================================
+# 모델 설정 템플릿
+# 
+# 새 모델 추가 시 이 파일을 복사하여 사용하세요.
+# 파일명: <model-name>.yaml (예: gpt-4o.yaml, llama-3.yaml)
+# =============================================================================
+
+# 모델 식별자 (inspect eval --model 에 전달되는 값)
+# 형식: provider/model-name
+model_id: openai/solar-pro2
+
+# 모델 메타데이터 (선택사항, 문서화 및 분석용)
+metadata:
+  provider: upstage  # 제공사 (OpenAI, Anthropic, Google 등)
+  name: Solar Pro 2  # 표시 이름
+  release_date: "2025-12-15"  # 출시일
+  context_window: 128000  # 컨텍스트 윈도우 크기 (토큰)
+  max_output_tokens: 16384  # 최대 출력 토큰
+
+# API 설정
+base_url: https://api.upstage.ai/v1  # 커스텀 API URL (OpenAI 호환 API 등)
+api_key_env: UPSTAGE_API_KEY  # API 키를 읽을 환경변수 이름
+
+
+# 기본 파라미터 (base_config의 defaults와 병합됨)
+# 여기서 지정한 값이 base_config의 값을 override
+defaults:
+  temperature: 0.0  # 생성 온도 (0.0 = deterministic)
+  max_tokens: 4096  # 최대 생성 토큰 수
+  # top_p: 1.0  # Top-p 샘플링 (선택사항)
+
+# 벤치마크별 오버라이드 설정 (선택사항)
+# 특정 벤치마크에서만 다른 설정을 사용할 때
+benchmarks:
+  # BFCL: Function Calling 벤치마크
+  # - use_native_tools: true → Native Tool Calling (OpenAI, Claude, Gemini 등)
+  # - use_native_tools: false → Text-based (EXAONE, 일부 오픈소스 등)
+  bfcl:
+    use_native_tools: true
+  
+  # SWE-bench: 긴 출력이 필요한 경우
+  # swebench_verified_official_80:
+  #   max_tokens: 16384
+

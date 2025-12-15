@@ -4,13 +4,70 @@ Horangi CLI - 한국어 LLM 벤치마크 평가 도구
 
 사용법:
     uv run horangi ko_hellaswag --model openai/gpt-4o -T limit=5
-    uv run horangi swebench_verified_official_80 --model openai/gpt-4o -T limit=1
+    uv run horangi ko_hellaswag --config gpt-4o -T limit=5
+    uv run horangi swebench_verified_official_80 --config claude-3-5-sonnet -T limit=1
     uv run horangi --list  # 사용 가능한 벤치마크 목록
+    uv run horangi --list-models  # 사용 가능한 모델 설정 목록
 """
 
+import os
 import subprocess
 import sys
 from pathlib import Path
+
+
+def _is_openai_compat_api(model_config: dict) -> bool:
+    """
+    OpenAI 호환 API인지 확인 (openai provider + 비 OpenAI base_url)
+    
+    예: Solar, Grok, Together AI 등
+    """
+    model_id = model_config.get("model_id", "")
+    base_url = model_config.get("base_url") or model_config.get("api_base")
+    
+    # openai/ provider를 사용하면서 base_url이 openai.com이 아닌 경우
+    if model_id.startswith("openai/") and base_url:
+        return "openai.com" not in base_url
+    
+    return False
+
+
+def _get_openai_compat_args(model_config: dict, verbose: bool = True) -> list[str]:
+    """
+    OpenAI 호환 API를 위한 CLI 인자 생성
+    
+    .env의 OPENAI_API_KEY가 아닌 모델 설정의 api_key_env에서 읽은 값을
+    --model-args api_key=...로 직접 전달합니다.
+    
+    Returns:
+        추가할 CLI 인자 리스트 (예: ["--model-args", "api_key=...", "--model-base-url", "..."])
+    """
+    extra_args = []
+    
+    if not _is_openai_compat_api(model_config):
+        return extra_args
+    
+    # API 키: -M api_key=... 로 직접 전달 (.env 우회)
+    api_key_env = model_config.get("api_key_env")
+    if api_key_env:
+        api_key = os.environ.get(api_key_env)
+        if api_key:
+            extra_args.extend(["-M", f"api_key={api_key}"])
+            if verbose:
+                masked_key = api_key[:8] + "..." if len(api_key) > 8 else "***"
+                print(f"🔑 {api_key_env} → -M api_key ({masked_key})")
+        else:
+            print(f"❌ 환경변수 {api_key_env}가 설정되지 않았습니다!")
+            print(f"   다음 명령어로 설정하세요: export {api_key_env}=\"your-api-key\"")
+    
+    # Base URL: --model-base-url 로 전달
+    base_url = model_config.get("base_url") or model_config.get("api_base")
+    if base_url:
+        extra_args.extend(["--model-base-url", base_url])
+        if verbose:
+            print(f"🌐 --model-base-url → {base_url}")
+    
+    return extra_args
 
 
 def main():
@@ -21,24 +78,64 @@ def main():
     src_path = project_root / "src"
     horangi_py = project_root / "horangi.py"
     
+    # src를 path에 추가 (config_loader 등 사용 위해)
+    sys.path.insert(0, str(src_path))
+    
+    # --list-models: 모델 설정 목록 출력
+    if args and args[0] == "--list-models":
+        print("🐯 Horangi - 사용 가능한 모델 설정")
+        print()
+        
+        from core.config_loader import ConfigLoader
+        config = ConfigLoader()
+        models = config.list_models()
+        
+        if not models:
+            print("  설정된 모델이 없습니다.")
+            print(f"  configs/models/ 디렉토리에 YAML 파일을 추가하세요.")
+        else:
+            print("사용 가능한 모델 설정:")
+            print()
+            for model_name in sorted(models):
+                if model_name.startswith("_"):  # 템플릿 파일 제외
+                    continue
+                model_config = config.get_model(model_name)
+                model_id = model_config.get("model_id", model_name)
+                metadata = model_config.get("metadata", {})
+                desc = metadata.get("description", "")
+                release_date = metadata.get("release_date", "")
+                
+                print(f"  {model_name:<25} → {model_id}")
+                if desc:
+                    print(f"  {'':25}   {desc}")
+                if release_date:
+                    print(f"  {'':25}   출시일: {release_date}")
+                print()
+        
+        print("사용 예시:")
+        print("  uv run horangi ko_hellaswag --config gpt-4o -T limit=5")
+        return 0
+    
     # --list 또는 -l 옵션: 벤치마크 목록 출력
     if not args or args[0] in ("--list", "-l", "--help", "-h"):
         print("🐯 Horangi - 한국어 LLM 벤치마크 평가 도구")
         print()
         print("사용법:")
         print("  uv run horangi <벤치마크> --model <모델> [옵션]")
+        print("  uv run horangi <벤치마크> --config <설정파일> [옵션]")
         print()
         print("예시:")
         print("  uv run horangi ko_hellaswag --model openai/gpt-4o -T limit=5")
-        print("  uv run horangi swebench_verified_official_80 --model openai/gpt-4o -T limit=1")
+        print("  uv run horangi ko_hellaswag --config gpt-4o -T limit=5")
+        print("  uv run horangi swebench_verified_official_80 --config claude-3-5-sonnet -T limit=1")
+        print()
+        print("모델 설정 목록:")
+        print("  uv run horangi --list-models")
         print()
         
         # 벤치마크 목록 출력
         print("사용 가능한 벤치마크:")
         print()
-        
-        # src를 path에 추가하고 benchmarks import
-        sys.path.insert(0, str(src_path))
         
         from benchmarks import list_benchmarks_with_descriptions
         
@@ -49,7 +146,7 @@ def main():
             "추론": ["ko_moral", "ko_arc_agi", "ko_gsm8k"],
             "편향/안전": ["korean_hate_speech", "kobbq", "ko_hle"],
             "환각 (HalluLens)": ["ko_hallulens_wikiqa", "ko_hallulens_longwiki", "ko_hallulens_generated", "ko_hallulens_mixed", "ko_hallulens_nonexistent"],
-            "Function Calling": ["bfcl_extended", "bfcl_text"],
+            "Function Calling": ["bfcl"],
             "대화": ["mtbench_ko"],
             "코딩": ["swebench_verified_official_80"],
         }
@@ -68,10 +165,79 @@ def main():
     
     # 첫 번째 인자가 벤치마크 이름
     benchmark = args[0]
-    rest_args = args[1:]
+    rest_args = list(args[1:])
+    
+    # --config 또는 -c 옵션 처리
+    config_name = None
+    new_args = []
+    i = 0
+    while i < len(rest_args):
+        arg = rest_args[i]
+        if arg in ("--config", "-c"):
+            if i + 1 < len(rest_args):
+                config_name = rest_args[i + 1]
+                i += 2
+                continue
+            else:
+                print("❌ --config 옵션에 모델 설정 이름이 필요합니다.")
+                print("   예: --config gpt-4o")
+                return 1
+        new_args.append(arg)
+        i += 1
+    
+    rest_args = new_args
+    
+    # 설정 파일에서 모델 정보 로드
+    if config_name:
+        from core.config_loader import ConfigLoader
+        
+        config = ConfigLoader()
+        model_config = config.get_model(config_name)
+        
+        if not model_config:
+            print(f"❌ 모델 설정을 찾을 수 없습니다: {config_name}")
+            print(f"   사용 가능한 모델: {', '.join(config.list_models())}")
+            return 1
+        
+        # OpenAI 호환 API 인자 생성 (Solar, Grok 등)
+        # .env의 OPENAI_API_KEY 대신 모델 설정의 api_key_env 사용
+        openai_compat_args = _get_openai_compat_args(model_config)
+        
+        # model_id를 --model 옵션으로 추가
+        model_id = model_config.get("model_id", config_name)
+        
+        # 이미 --model이 지정되어 있지 않으면 추가
+        has_model = any(arg == "--model" for arg in rest_args)
+        if not has_model:
+            rest_args = ["--model", model_id] + rest_args
+        
+        # 벤치마크별 설정 적용
+        benchmark_overrides = model_config.get("benchmarks", {}).get(benchmark, {})
+        defaults = model_config.get("defaults", {})
+        
+        # 설정 적용 (-T 옵션으로 추가, 이미 지정된 것은 유지)
+        existing_t_args = set()
+        for j, arg in enumerate(rest_args):
+            if arg == "-T" and j + 1 < len(rest_args):
+                key = rest_args[j + 1].split("=")[0]
+                existing_t_args.add(key)
+        
+        # defaults 적용
+        for key, value in defaults.items():
+            if key not in existing_t_args and key in ("temperature", "max_tokens"):
+                rest_args.extend(["-T", f"{key}={value}"])
+        
+        # 벤치마크별 오버라이드 적용
+        for key, value in benchmark_overrides.items():
+            if key not in existing_t_args:
+                rest_args.extend(["-T", f"{key}={value}"])
+        
+        # OpenAI 호환 API 인자 추가 (api_key, base_url)
+        rest_args.extend(openai_compat_args)
     
     # inspect eval 명령 구성
     cmd = ["inspect", "eval", f"{horangi_py}@{benchmark}"] + rest_args
+    
     # 실행
     result = subprocess.run(cmd)
     return result.returncode

@@ -36,8 +36,7 @@ ALL_BENCHMARKS = [
     # "ko_hallulens_generated",
     # "ko_hallulens_mixed",
     "ko_hallulens_nonexistent",
-    "bfcl_extended",
-    # "bfcl_text",
+    "bfcl",
     "mtbench_ko",
     "swebench_verified_official_80",
 ]
