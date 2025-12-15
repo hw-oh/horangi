@@ -10,7 +10,8 @@ metadata:
   provider: OpenAI
   name: GPT-4o
   release_date: "2024-05-13"
-  description: "OpenAI의 최신 멀티모달 플래그십 모델"
+  size_category: None
+  model_size: None  # OpenAI는 파라미터 수 비공개
   context_window: 128000
   max_output_tokens: 16384
 

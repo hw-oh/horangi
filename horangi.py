@@ -82,6 +82,33 @@ def ko_balt_700(
         use_korean_prompt=use_korean_prompt,
     )
 
+@task
+def ko_balt_700_syntax(
+    shuffle: bool = False,
+    limit: int | None = None,
+    use_korean_prompt: bool = True,
+) -> Task:
+    """KoBALT-700-Syntax"""
+    return create_benchmark(
+        name="ko_balt_700_syntax",
+        shuffle=shuffle,
+        limit=limit,
+        use_korean_prompt=use_korean_prompt,
+    )
+
+@task
+def ko_balt_700_semantic(
+    shuffle: bool = False,
+    limit: int | None = None,
+    use_korean_prompt: bool = True,
+) -> Task:
+    """KoBALT-700-Semantic"""
+    return create_benchmark(
+        name="ko_balt_700_semantic",
+        shuffle=shuffle,
+        limit=limit,
+        use_korean_prompt=use_korean_prompt,
+    )
 
 @task
 def ifeval_ko(

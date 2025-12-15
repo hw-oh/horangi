@@ -13,6 +13,8 @@ from benchmarks.ko_hellaswag import CONFIG as ko_hellaswag
 from benchmarks.ko_aime2025 import CONFIG as ko_aime2025
 from benchmarks.ifeval_ko import CONFIG as ifeval_ko
 from benchmarks.ko_balt_700 import CONFIG as ko_balt_700
+from benchmarks.ko_balt_700_syntax import CONFIG as ko_balt_700_syntax
+from benchmarks.ko_balt_700_semantic import CONFIG as ko_balt_700_semantic
 from benchmarks.haerae_bench_v1_rc import CONFIG as haerae_bench_v1_rc
 from benchmarks.haerae_bench_v1_wo_rc import CONFIG as haerae_bench_v1_wo_rc
 from benchmarks.kmmlu import CONFIG as kmmlu
@@ -84,6 +86,8 @@ BENCHMARKS: dict = {
     "ko_aime2025": ko_aime2025,
     "ifeval_ko": ifeval_ko,
     "ko_balt_700": ko_balt_700,
+    "ko_balt_700_syntax": ko_balt_700_syntax,
+    "ko_balt_700_semantic": ko_balt_700_semantic,
     "haerae_bench_v1_rc": haerae_bench_v1_rc,
     "haerae_bench_v1_wo_rc": haerae_bench_v1_wo_rc,
     "kmmlu": kmmlu,

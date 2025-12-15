@@ -361,7 +361,7 @@ def create_benchmark(
             answer_format = config.get("answer_format", "index_0")
             samples = [create_sample(r, field_mapping, answer_format) for r in rows]
         
-        dataset = MemoryDataset(samples=samples, shuffled=shuffle)
+        dataset = MemoryDataset(samples=samples, shuffled=shuffle, name=name)
         
         solver = original_task.solver
         scorer = original_task.scorer
@@ -389,7 +389,7 @@ def create_benchmark(
         field_mapping = config.get("field_mapping", {})
         answer_format = config.get("answer_format", "index_0")
         samples = [create_sample(r, field_mapping, answer_format) for r in rows]
-        dataset = MemoryDataset(samples=samples, shuffled=shuffle)
+        dataset = MemoryDataset(samples=samples, shuffled=shuffle, name=name)
         
         # Scorer
         if config.get("scorer"):

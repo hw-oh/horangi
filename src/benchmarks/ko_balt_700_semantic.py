@@ -8,7 +8,7 @@ from core.benchmark_config import BenchmarkConfig
 
 CONFIG = BenchmarkConfig(
     data_type="weave",
-    data_source="weave:///wandb-korea/evaluation-job/object/KoBALT-700:4g1U9ysNXVYSgiHu5u1tKD8wFyhqjcHwm82m70Idk5g",
+    data_source="weave:///wandb-korea/evaluation-job/object/KoBALT-700-semantic:v1YH8YFTLXYtCOhAfEMrMexIXb8gOhvkrpmsvNoPffk",
     field_mapping={
         "id": "id",
         "input": "question",

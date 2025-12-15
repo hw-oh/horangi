@@ -8,6 +8,7 @@ Horangi CLI - 한국어 LLM 벤치마크 평가 도구
     uv run horangi swebench_verified_official_80 --config claude-3-5-sonnet -T limit=1
     uv run horangi --list  # 사용 가능한 벤치마크 목록
     uv run horangi --list-models  # 사용 가능한 모델 설정 목록
+    uv run horangi leaderboard --project <entity>/<project>  # 리더보드 생성
 """
 
 import os
@@ -70,6 +71,71 @@ def _get_openai_compat_args(model_config: dict, verbose: bool = True) -> list[st
     return extra_args
 
 
+def _handle_leaderboard_command(args: list[str]) -> int:
+    """
+    리더보드 생성 명령어 처리
+    
+    사용법:
+        horangi leaderboard --project <entity>/<project>
+        horangi leaderboard --project <entity>/<project> --name "My Leaderboard"
+    """
+    import argparse
+    
+    parser = argparse.ArgumentParser(
+        description="Weave 리더보드 생성",
+        prog="horangi leaderboard",
+    )
+    parser.add_argument(
+        "--project", "-p",
+        required=True,
+        help="Weave 프로젝트 (예: my-team/my-project)",
+    )
+    parser.add_argument(
+        "--name", "-n",
+        default=None,
+        help="리더보드 이름 (기본: Inspect AI Leaderboard)",
+    )
+    parser.add_argument(
+        "--description", "-d",
+        default=None,
+        help="리더보드 설명",
+    )
+    
+    try:
+        parsed = parser.parse_args(args)
+    except SystemExit as e:
+        return e.code if e.code else 0
+    
+    # 프로젝트에서 entity와 project 분리
+    if "/" not in parsed.project:
+        print("❌ 프로젝트 형식이 올바르지 않습니다. '<entity>/<project>' 형식을 사용하세요.")
+        return 1
+    
+    entity, project = parsed.project.split("/", 1)
+    
+    print(f"🐯 Horangi - Weave 리더보드 생성")
+    print(f"📁 프로젝트: {entity}/{project}")
+    print()
+    
+    # src를 path에 추가
+    src_path = Path(__file__).parent.parent
+    sys.path.insert(0, str(src_path))
+    
+    from core.leaderboard import create_leaderboard, LEADERBOARD_NAME, LEADERBOARD_DESCRIPTION
+    
+    name = parsed.name or LEADERBOARD_NAME
+    description = parsed.description or LEADERBOARD_DESCRIPTION
+    
+    url = create_leaderboard(
+        name=name,
+        description=description,
+        entity=entity,
+        project=project,
+    )
+    
+    return 0 if url else 1
+
+
 def main():
     args = sys.argv[1:]
     
@@ -80,6 +146,10 @@ def main():
     
     # src를 path에 추가 (config_loader 등 사용 위해)
     sys.path.insert(0, str(src_path))
+    
+    # leaderboard: 리더보드 생성
+    if args and args[0] == "leaderboard":
+        return _handle_leaderboard_command(args[1:])
     
     # --list-models: 모델 설정 목록 출력
     if args and args[0] == "--list-models":
@@ -131,6 +201,9 @@ def main():
         print()
         print("모델 설정 목록:")
         print("  uv run horangi --list-models")
+        print()
+        print("리더보드 생성:")
+        print("  uv run horangi leaderboard --project <entity>/<project>")
         print()
         
         # 벤치마크 목록 출력
