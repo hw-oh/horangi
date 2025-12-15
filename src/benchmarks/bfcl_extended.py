@@ -16,19 +16,21 @@ inspect_evals.bfcl을 상속하지 않고 독립적으로 구현합니다.
 - multi_turn*: 멀티턴 대화
 """
 
-CONFIG = {
+from core.benchmark_config import BenchmarkConfig
+
+CONFIG = BenchmarkConfig(
     # base 없음 - 독립 벤치마크
-    "data_type": "weave",
-    "data_source": "weave:///wandb-korea/evaluation-job/object/BFCL_Extended:latest",
-    "field_mapping": {
+    data_type="weave",
+    data_source="weave:///wandb-korea/evaluation-job/object/BFCL_Extended:latest",
+    field_mapping={
         "id": "id",
         "input": "input",
         # target은 없음 - metadata의 ground_truth 사용
     },
-    "answer_format": "identity",
-    "solver": "bfcl_solver",  # 커스텀 solver
-    "scorer": "bfcl_scorer",  # 커스텀 scorer
+    answer_format="identity",
+    solver="bfcl_solver",  # 커스텀 solver
+    scorer="bfcl_scorer",  # 커스텀 scorer
     # balanced sampling으로 각 카테고리에서 균등하게 추출
-    "sampling": "balanced",
-    "sampling_by": "category",
-}
+    sampling="balanced",
+    sampling_by="category",
+)

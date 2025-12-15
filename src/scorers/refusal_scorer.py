@@ -106,7 +106,7 @@ def false_acceptance_rate() -> Metric:
     return metric_fn
 
 
-@scorer(metrics=[refusal_rate(), false_acceptance_rate()])
+@scorer(name="hallulens_refusal", metrics=[refusal_rate(), false_acceptance_rate()])
 def refusal_scorer() -> Scorer:
     """
     Refusal Scorer for NonExistentEntity tasks

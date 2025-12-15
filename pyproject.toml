@@ -24,8 +24,8 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    "inspect-ai>=0.3.0",
-    "inspect-wandb[weave]>=0.1.0",
+    "inspect-ai @ git+https://github.com/hw-oh/inspect_ai.git",
+    "inspect-wandb[weave] @ git+https://github.com/hw-oh/inspect_wandb.git",
     "pandas>=2.0.0",
     "jsonlines>=4.0.0",
     "datasets>=2.18.0",

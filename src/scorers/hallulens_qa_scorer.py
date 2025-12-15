@@ -114,7 +114,7 @@ def correct_rate() -> Metric:
     return metric_fn
 
 
-@scorer(metrics=[correct_rate(), hallucination_rate(), refusal_rate()])
+@scorer(name="hallulens_qa", metrics=[correct_rate(), hallucination_rate(), refusal_rate()])
 def hallulens_qa_scorer(judge_model: str = "openai/gpt-4o-mini") -> Scorer:
     """
     HalluLens QA Scorer

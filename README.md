@@ -4,14 +4,15 @@
 
 ## ✨ 특징
 
-- 🇰🇷 **25개+ 한국어 벤치마크** 지원
-- 🔧 **Config 기반** 벤치마크 정의 - 새 벤치마크를 쉽게 추가
+- 🇰🇷 **20개+ 한국어 벤치마크** 지원
 - 📊 **WandB/Weave 자동 로깅** - 실험 추적 및 결과 비교
 - 🚀 **다양한 모델 지원** - OpenAI, Claude, Gemini, DeepSeek, EXAONE 등
+- 🔧 **Config 기반** 벤치마크 정의 - 새 벤치마크를 쉽게 추가
+- 🛠️ **CLI 지원** - `horangi` 명령어로 간편 실행
 
 ## 📦 설치
 
-### uv 사용 (권장)
+### uv 사용
 
 [uv](https://docs.astral.sh/uv/)는 빠르고 현대적인 Python 패키지 관리자입니다.
 
@@ -28,21 +29,6 @@ uv sync
 
 # 개발 의존성 포함 설치
 uv sync --all-extras
-```
-
-### pip 사용
-
-```bash
-# 저장소 클론
-git clone https://github.com/your-repo/inspect_horangi.git
-cd inspect_horangi
-
-# 가상환경 생성 및 활성화
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-
-# 개발 모드 설치
-pip install -e ".[dev]"
 ```
 
 ### 환경 변수 설정
@@ -63,20 +49,25 @@ export OPENAI_BASE_URL=https://api.x.ai/v1       # Grok
 
 ## 🚀 빠른 시작
 
+### CLI 사용 (권장)
+
 ```bash
-# 벤치마크 실행 (uv 사용)
-uv run inspect eval horangi.py@ko_hellaswag --model openai/gpt-4o -T limit=10
+# 지원 벤치마크 목록 확인
+uv run horangi --list
+
+# 벤치마크 실행
+uv run horangi kmmlu --model openai/gpt-4o -T limit=10
 
 # 전체 데이터셋
-uv run inspect eval horangi.py@kmmlu --model anthropic/claude-3-5-sonnet-20241022
-
-# 여러 벤치마크 순차 실행
-uv run inspect eval horangi.py@ko_hellaswag horangi.py@ko_gsm8k --model openai/gpt-4o
+uv run horangi kmmlu --model openai/gpt-4o
 ```
 
-> **Note**: 가상환경을 활성화한 경우 `uv run` 없이 직접 `inspect eval ...` 실행 가능
-
 ## 📊 지원 벤치마크
+
+```bash
+# 전체 목록 확인
+uv run horangi --list
+```
 
 ### 범용언어성능 (GLP)
 
@@ -93,7 +84,7 @@ uv run inspect eval horangi.py@ko_hellaswag horangi.py@ko_gsm8k --model openai/g
 | | 수학적 추론 | `ko_gsm8k`, `ko_aime2025` | 수학 문제 풀이 능력, 연산/정리/추론 정확도, 복잡한 문제 해결 과정 평가 | ✅ |
 | | 논리적 추론 | `mtbench_ko` (reasoning) | 논리적 일관성, 단계별 추론 체계성, 원인-결과 기반 문제 해결능력 측정 | ✅ |
 | | 추상적 추론 | `ko_arc_agi` | 시각적/구조적 추론을 포함한 추상적 문제 해결 평가 | ✅ |
-| **어플리케이션 개발** | 코딩 | `mtbench_ko`, `swe_bench_verified` | 코드 생성 능력, 문제 해결 코딩 능력 평가 (LLM Judge) | ✅ |
+| **어플리케이션 개발** | 코딩 | `swebench_verified_official_80` | SWE-bench 기반 실제 GitHub 이슈 해결 능력 평가 | ✅ |
 | | 함수호출 | `bfcl_extended`, `bfcl_text` | 함수 호출의 정확성 (단일, 멀티턴, 무관계검출) | ✅ |
 
 ### 가치정렬성능 (ALT)
@@ -151,6 +142,19 @@ uv run inspect eval horangi.py@ko_hellaswag horangi.py@ko_gsm8k --model openai/g
 
 </details>
 
+<details>
+<summary><b>SWE-bench Verified (코딩)</b></summary>
+
+| 벤치마크 | 설명 |
+|----------|------|
+| `swebench_verified_official_80` | 80개 검증된 GitHub 이슈 해결 |
+
+- **실제 오픈소스 이슈** 기반 패치 생성
+- **외부 채점 서버** 사용 (Docker 환경 불필요)
+- **Unified Diff 형식** 패치 생성
+
+</details>
+
 ## 🔧 옵션
 
 ```bash
@@ -161,63 +165,40 @@ uv run inspect eval horangi.py@ko_hellaswag horangi.py@ko_gsm8k --model openai/g
 
 # 모델 옵션
 --model openai/gpt-4o
---model anthropic/claude-3-5-sonnet-20241022
---model google/gemini-1.5-pro
-```
-
-## 📦 uv 패키지 관리
-
-```bash
-# 패키지 추가
-uv add <패키지명>
-
-# 개발 의존성 추가
-uv add --dev <패키지명>
-
-# 패키지 제거
-uv remove <패키지명>
-
-# lock 파일 업데이트
-uv lock
-
-# 의존성 동기화
-uv sync
+--model anthropic/claude-4-5-sonnet
+--model google/gemini-3-pro
 ```
 
 ## 📁 프로젝트 구조
 
 ```
 inspect_horangi/
-├── horangi.py           # @task 함수 정의 (진입점)
+├── horangi.py              # @task 함수 정의 (진입점)
 ├── pyproject.toml          # 프로젝트 설정 및 의존성
 ├── uv.lock                 # 의존성 lock 파일
-├── src/horangi/
+├── src/
 │   ├── benchmarks/         # 벤치마크 설정 파일
+│   │   ├── __init__.py     # 벤치마크 등록 및 목록
 │   │   ├── ko_hellaswag.py
 │   │   ├── kmmlu.py
 │   │   └── ...
 │   ├── core/               # 핵심 로직
 │   │   ├── factory.py      # Task 생성 팩토리
 │   │   ├── loaders.py      # 데이터 로딩
+│   │   ├── benchmark_config.py  # BenchmarkConfig 데이터클래스
 │   │   └── answer_format.py
 │   ├── scorers/            # 커스텀 Scorer
 │   │   ├── bfcl_scorer.py
 │   │   ├── kobbq_scorer.py
+│   │   ├── hallulens_qa_scorer.py
+│   │   ├── swebench_server_scorer.py
 │   │   └── ...
-│   └── solvers/            # 커스텀 Solver
-│       └── bfcl_solver.py
+│   ├── solvers/            # 커스텀 Solver
+│   │   ├── bfcl_solver.py
+│   │   └── swebench_patch_solver.py
+│   └── cli/                # CLI 엔트리포인트
+│       └── __init__.py
 └── create_benchmark/       # 데이터셋 생성 스크립트
-```
-
-## ➕ 새 벤치마크 추가
-
-자세한 개발 가이드는 [src/horangi/README.md](src/horangi/README.md)를 참고하세요.
-
-```bash
-# 간단 요약: 3단계로 추가
-1. src/horangi/benchmarks/my_benchmark.py 생성 (CONFIG 정의)
-2. src/horangi/benchmarks/__init__.py에 등록
-3. horangi.py에 @task 함수 추가
 ```
 
 ## 🔌 모델 지원
@@ -237,44 +218,43 @@ inspect_horangi/
 ```bash
 # DeepSeek
 export OPENAI_BASE_URL=https://api.deepseek.com
-uv run inspect eval horangi.py@kmmlu --model openai/deepseek-chat
+uv run horangi kmmlu --model openai/deepseek-chat
 
 # Grok (xAI)
 export OPENAI_BASE_URL=https://api.x.ai/v1
-uv run inspect eval horangi.py@kmmlu --model openai/grok-beta
+uv run horangi kmmlu --model openai/grok-beta
 ```
 
 ### 로컬/자체 모델
 
 ```bash
 # vLLM
-uv run inspect eval horangi.py@kmmlu --model vllm/LGAI-EXAONE/EXAONE-3.5-32B-Instruct
+uv run horangi kmmlu --model vllm/LGAI-EXAONE/EXAONE-3.5-32B-Instruct
 
 # Ollama
-uv run inspect eval horangi.py@kmmlu --model ollama/llama3.1:70b
+uv run horangi kmmlu --model ollama/llama3.1:70b
 ```
 
 ## 📈 결과 확인
 
-### WandB Dashboard
+### Weave Evaluation
 
-평가 결과는 자동으로 WandB에 로깅됩니다:
-- [wandb.ai/horangi/inspect_horangi-dev](https://wandb.ai/horangi/inspect_horangi-dev)
+Weave UI에서 상세 결과 확인:
+- 샘플별 점수 및 응답
+- 모델 간 비교
+- 집계 메트릭 (Scores 섹션)
 
-### 로컬 로그
+## 🔧 inspect-wandb Fork
 
-```bash
-# 로그 뷰어
-uv run inspect view logs/
+이 프로젝트는 Weave 통합을 위해 fork된 [inspect-wandb](https://github.com/hw-oh/inspect_wandb)를 사용합니다:
 
-# 특정 로그 파일
-uv run inspect view logs/2025-01-01T00-00-00_benchmark_xxx.eval
-```
+- Weave UI의 Scores 섹션에 집계 메트릭 표시
+- CORRECT/INCORRECT 값을 boolean으로 변환하여 수치 집계 지원
 
 ## 📚 참고 자료
 
 - [Inspect AI Documentation](https://inspect.ai-safety-institute.org.uk/)
-- [inspect-wandb](https://github.com/wandb/inspect-wandb)
+- [inspect-wandb (fork)](https://github.com/hw-oh/inspect_wandb)
 - [inspect_evals](https://github.com/UKGovernmentBEIS/inspect_evals)
 - [WandB Weave](https://wandb.ai/site/weave)
 

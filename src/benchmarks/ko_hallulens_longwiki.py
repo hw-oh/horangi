@@ -13,20 +13,21 @@ KoHalluLens LongWiki - 한국어 긴 위키피디아 문서 기반 QA 환각 평
 - reference_en: 원본 영어 위키피디아
 """
 
-CONFIG = {
-    "data_type": "weave",
-    "data_source": "weave:///wandb-korea/evaluation-job/object/HalluLens_LongWiki:latest",
-    "field_mapping": {
+from core.benchmark_config import BenchmarkConfig
+
+CONFIG = BenchmarkConfig(
+    data_type="weave",
+    data_source="weave:///wandb-korea/evaluation-job/object/HalluLens_LongWiki:latest",
+    field_mapping={
         "id": "id",
         "input": "prompt",
         "target": "answer",
     },
-    "answer_format": "identity",
-    "solver": "generate",
-    "scorer": "hallulens_qa_scorer",
-    "system_message": """당신은 정확한 정보를 제공하는 AI 어시스턴트입니다.
+    answer_format="identity",
+    solver="generate",
+    scorer="hallulens_qa_scorer",
+    system_message="""당신은 정확한 정보를 제공하는 AI 어시스턴트입니다.
 각 질문에 대해 알고 있는 정보를 바탕으로 답변하세요.
 확실하지 않은 경우 모른다고 말하세요.
 답변은 질문 번호에 맞춰서 작성해 주세요.""",
-}
-
+)

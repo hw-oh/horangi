@@ -1,12 +1,9 @@
-"""
-Squad-Kor-V1 - 한국어 Squad 벤치마크
+"""Squad-Kor-V1 - 한국어 독해 QA"""
 
-inspect_evals.squad를 상속하여 dataset만 override합니다.
-"""
+from core.benchmark_config import BenchmarkConfig
 
-CONFIG = {
-    "base": "inspect_evals.squad.squad",
-    "data_type": "weave",
-    "data_source": "weave:///wandb-korea/evaluation-job/object/squad_kor_v1:2OPwXAfZ0y4zgqPHWXoFl6BAqf7OkkDqS0jaAB9kWOI",
-}
-
+CONFIG = BenchmarkConfig(
+    base="inspect_evals.squad.squad",
+    data_type="weave",
+    data_source="weave:///wandb-korea/evaluation-job/object/squad_kor_v1:2OPwXAfZ0y4zgqPHWXoFl6BAqf7OkkDqS0jaAB9kWOI",
+)

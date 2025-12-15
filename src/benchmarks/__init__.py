@@ -110,11 +110,19 @@ BENCHMARKS: dict = {
 }
 
 def get_benchmark_config(name: str) -> dict:
-    """벤치마크 설정 가져오기"""
+    """벤치마크 설정 가져오기 (dict 반환)"""
     if name not in BENCHMARKS:
         available = ", ".join(BENCHMARKS.keys())
         raise ValueError(f"Unknown benchmark: {name}. Available: {available}")
-    return BENCHMARKS[name]
+    
+    config = BENCHMARKS[name]
+    
+    # BenchmarkConfig dataclass인 경우 dict로 변환
+    if hasattr(config, "to_dict"):
+        return config.to_dict()
+    
+    # 이미 dict인 경우 그대로 반환
+    return config
 
 
 def list_benchmarks() -> list[str]:

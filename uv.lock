@@ -1157,8 +1157,8 @@ wheels = [
 
 [[package]]
 name = "inspect-ai"
-version = "0.3.153"
-source = { registry = "https://pypi.org/simple" }
+version = "0.3.154.dev3904+ge519a1f94"
+source = { git = "https://github.com/hw-oh/inspect_ai.git#e519a1f942d060cebcba1d1a7bf9e6872d002610" }
 dependencies = [
     { name = "aioboto3" },
     { name = "aiohttp" },
@@ -1195,10 +1195,6 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "universal-pathlib" },
     { name = "zipp" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/24/17/a0e0fcac481b1b708534ed819aa102fcf67a4a7d5b737dfc3ed2a6a5fa13/inspect_ai-0.3.153.tar.gz", hash = "sha256:fbb0a94c6b8efe6e9d6e5b5be5f6d9fb7adc44caf29416132d18a623b4bc2eee", size = 43383964, upload-time = "2025-12-06T03:36:29.095Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c2/71/88b1eb51fd4b94b5dedac8c78b7b253dd68d4ee732231d8a430a8e58c073/inspect_ai-0.3.153-py3-none-any.whl", hash = "sha256:ec734c89809ef7934f66730388523cca052252a866533e97e83ad680155e9094", size = 34678469, upload-time = "2025-12-06T03:36:14.125Z" },
 ]
 
 [[package]]
@@ -1255,9 +1251,9 @@ requires-dist = [
     { name = "black", marker = "extra == 'dev'", specifier = ">=23.0.0" },
     { name = "datasets", specifier = ">=2.18.0" },
     { name = "google-genai", marker = "extra == 'google'", specifier = ">=0.1.0" },
-    { name = "inspect-ai", specifier = ">=0.3.0" },
+    { name = "inspect-ai", git = "https://github.com/hw-oh/inspect_ai.git" },
     { name = "inspect-evals", specifier = ">=0.3.103" },
-    { name = "inspect-wandb", extras = ["weave"], specifier = ">=0.1.0" },
+    { name = "inspect-wandb", extras = ["weave"], git = "https://github.com/hw-oh/inspect_wandb.git" },
     { name = "instruction-following-eval", git = "https://github.com/josejg/instruction_following_eval.git" },
     { name = "jsonlines", specifier = ">=4.0.0" },
     { name = "openai", specifier = ">=1.0.0" },
@@ -1271,16 +1267,12 @@ provides-extras = ["dev", "google"]
 [[package]]
 name = "inspect-wandb"
 version = "0.2.0"
-source = { registry = "https://pypi.org/simple" }
+source = { git = "https://github.com/hw-oh/inspect_wandb.git#7ec472a8cfd1ae95597974caf66f5b4ff0cb8b8a" }
 dependencies = [
     { name = "inspect-ai" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "wandb" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/c5/ba/69c9680ff35ab8c67c6e611520107de0a8c95eca574a1633b610b9e3bd8f/inspect_wandb-0.2.0.tar.gz", hash = "sha256:3bdc202c296de5afc6f83aebf802fe76b27476f73cb479d9994d99440669b688", size = 19111, upload-time = "2025-10-29T15:12:50.089Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ed/66/38039b8c1a7a9ccf5d68ba7cf02c57b510071dc6169852c3db2866681fdf/inspect_wandb-0.2.0-py3-none-any.whl", hash = "sha256:4670777591693e03d7721a41dc3381e6f51bc32584e00b225c1452e2bb3b1b92", size = 22392, upload-time = "2025-10-29T15:12:48.892Z" },
 ]
 
 [package.optional-dependencies]

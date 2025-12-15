@@ -72,7 +72,6 @@ def main():
     
     # inspect eval 명령 구성
     cmd = ["inspect", "eval", f"{horangi_py}@{benchmark}"] + rest_args
-    
     # 실행
     result = subprocess.run(cmd)
     return result.returncode
