@@ -425,10 +425,15 @@ async def summary() -> Dict[str, Any]:
 
 
 def main():
+    import argparse
     import uvicorn
-    port = int(os.environ.get("PORT", "8000"))
-    # Import string経由ではなく、アプリインスタンスを直接渡して起動
-    uvicorn.run(app, host="0.0.0.0", port=port, reload=False)
+    
+    parser = argparse.ArgumentParser(description="SWE-bench Scoring API Server")
+    parser.add_argument("--host", default="0.0.0.0", help="Host to bind")
+    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8000")), help="Port to bind")
+    args = parser.parse_args()
+    
+    uvicorn.run(app, host=args.host, port=args.port, reload=False)
 
 
 if __name__ == "__main__":
