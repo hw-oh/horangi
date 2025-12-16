@@ -30,7 +30,7 @@ dependencies = [
     "jsonlines>=4.0.0",
     "datasets>=2.18.0",
     "anthropic>=0.20.0",
-    "openai>=1.0.0",
+    "openai>=2.8.0",
     "instruction_following_eval @ git+https://github.com/josejg/instruction_following_eval.git",
     "inspect-evals>=0.3.103",
 ]

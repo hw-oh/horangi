@@ -41,7 +41,7 @@ LEADERBOARD_DESCRIPTION = """한국어 LLM 벤치마크 모델 성능 비교 리
 - 환각: ko_hallulens (wikiqa, longwiki, nonexistent)
 - 지식: ko_truthful_qa, ko_hle
 - 도구 사용: bfcl
-- 대화: mtbench_ko
+- 대화: ko_mtbench
 - 코딩: swebench_verified_official_80
 """
 
@@ -122,7 +122,7 @@ def build_columns_from_benchmarks(
         "bfcl": ("bfcl_scorer", "true_fraction"),
         
         # MT-Bench
-        "mtbench_ko": ("mtbench_scorer", "mean"),
+        "ko_mtbench": ("mtbench_scorer", "mean"),
         
         # SWE-bench
         "swebench_verified_official_80": ("swebench_server_scorer", "true_fraction"),
@@ -203,7 +203,7 @@ def create_weave_leaderboard(
         "ko_hallulens_wikiqa",
         "ko_hallulens_nonexistent",
         "bfcl",
-        "mtbench_ko",
+        "ko_mtbench",
         "swebench_verified_official_80",
     ]
     

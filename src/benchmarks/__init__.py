@@ -38,7 +38,7 @@ from benchmarks.bfcl import CONFIG as bfcl
 from benchmarks.bfcl_extended import CONFIG as bfcl_extended  # 하위 호환성
 from benchmarks.bfcl_text import CONFIG as bfcl_text  # 하위 호환성
 # MT-Bench
-from benchmarks.mtbench_ko import CONFIG as mtbench_ko
+from benchmarks.ko_mtbench import CONFIG as ko_mtbench
 # SWE-bench
 from benchmarks.swebench_verified_official_80 import CONFIG as swebench_verified_official_80
 
@@ -75,7 +75,7 @@ BENCHMARK_DESCRIPTIONS: dict[str, str] = {
     "bfcl_extended": "함수 호출 (Native Tool) [deprecated]",
     "bfcl_text": "함수 호출 (Text-based) [deprecated]",
     # 대화
-    "mtbench_ko": "멀티턴 대화 평가",
+    "ko_mtbench": "멀티턴 대화 평가",
     # 코딩
     "swebench_verified_official_80": "SWE-bench 버그 수정 (80개)",
 }
@@ -111,7 +111,7 @@ BENCHMARKS: dict = {
     "bfcl_extended": bfcl_extended,  # 하위 호환성
     "bfcl_text": bfcl_text,  # 하위 호환성
     # MT-Bench
-    "mtbench_ko": mtbench_ko,
+    "ko_mtbench": ko_mtbench,
     # SWE-bench
     "swebench_verified_official_80": swebench_verified_official_80,
 }

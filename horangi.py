@@ -419,7 +419,7 @@ def bfcl_text(
 # =============================================================================
 
 @task
-def mtbench_ko(
+def ko_mtbench(
     shuffle: bool = False,
     limit: int | None = None,
 ) -> Task:
@@ -429,7 +429,7 @@ def mtbench_ko(
     2턴 대화 형식, LLM Judge가 1-10점 평가
     """
     return create_benchmark(
-        name="mtbench_ko",
+        name="ko_mtbench",
         shuffle=shuffle,
         limit=limit,
     )

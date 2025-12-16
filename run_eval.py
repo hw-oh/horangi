@@ -9,6 +9,11 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+# .env 파일 로드
+load_dotenv(Path(__file__).parent / ".env")
+
 # inspect_evals의 날짜 파싱 문제 해결을 위해 영어 로케일 설정
 try:
     locale.setlocale(locale.LC_TIME, "en_US.UTF-8")
@@ -29,10 +34,12 @@ ALL_BENCHMARKS = [
     "ko_hellaswag",
     "ko_aime2025",
     "ifeval_ko",
-    "ko_balt_700_syntax",
-    "ko_balt_700_semantic",
-    "haerae_bench_v1_rc",
-    "haerae_bench_v1_wo_rc",
+    "ko_balt_700",
+    # "ko_balt_700_syntax",
+    # "ko_balt_700_semantic",
+    "haerae_bench_v1",
+    # "haerae_bench_v1_rc",
+    # "haerae_bench_v1_wo_rc",
     "kmmlu",
     "kmmlu_pro",
     "squad_kor_v1",
@@ -44,10 +51,10 @@ ALL_BENCHMARKS = [
     "kobbq",
     "ko_hle",
     "ko_hallulens_wikiqa",
-    "ko_hallulens_longwiki",
+    # "ko_hallulens_longwiki",
     "ko_hallulens_nonexistent",
     "bfcl",
-    "mtbench_ko",
+    "ko_mtbench",
     "swebench_verified_official_80",
 ]
 
@@ -297,7 +304,7 @@ def parse_scores_from_output(output: str, benchmark: str) -> dict | None:
         main_score = all_metrics.get("correct_rate") or all_metrics.get("refusal_rate")
     
     # MT-Bench: mean 사용 (10점 만점 → 0-1 스케일)
-    elif benchmark == "mtbench_ko":
+    elif benchmark == "ko_mtbench":
         if "mean" in all_metrics:
             main_score = all_metrics["mean"] / 10.0
     
@@ -314,7 +321,7 @@ def parse_scores_from_output(output: str, benchmark: str) -> dict | None:
         for metric in ["accuracy", "mean", "macro_f1", "f1", "resolved"]:
             if metric in all_metrics:
                 main_score = all_metrics[metric]
-                if metric == "mean" and benchmark == "mtbench_ko":
+                if metric == "mean" and benchmark == "ko_mtbench":
                     main_score = main_score / 10.0  # mtbench 스케일
                 break
     
@@ -357,17 +364,18 @@ def main():
     
     args = parser.parse_args()
     
-    # base_config.yaml에서 W&B 설정 로드
-    config = get_config()
-    wandb_config = config.wandb
-    
-    entity = wandb_config.get("entity", "")
-    project = wandb_config.get("project", "")
+    # 환경변수에서 W&B 설정 로드 (.env 파일은 이미 로드됨)
+    entity = os.environ.get("WANDB_ENTITY", "")
+    project = os.environ.get("WANDB_PROJECT", "")
     
     if not entity or not project:
-        print("❌ W&B 로깅을 위해 entity와 project가 필요합니다.")
-        print("   configs/base_config.yaml의 wandb 섹션에 설정하세요.")
+        print("❌ W&B 로깅을 위해 WANDB_ENTITY와 WANDB_PROJECT 환경변수가 필요합니다.")
+        print("   .env 파일에 다음을 추가하세요:")
+        print("     WANDB_ENTITY=your-entity")
+        print("     WANDB_PROJECT=your-project")
         sys.exit(1)
+    
+    config = get_config()
     
     # 벤치마크 필터링
     if args.quick:

@@ -6,7 +6,7 @@
 # =============================================================================
 
 # 모델 식별자 (표시용)
-model_id: upstage/solar-pro2
+model_id: upstage/solar-pro2-251215
 
 # API Provider: OpenAI 호환 API 사용 시 "openai" 지정
 # → inspect eval에는 "openai/solar-pro2"로 전달됨

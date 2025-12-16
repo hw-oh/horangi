@@ -12,8 +12,11 @@ base_config.yaml + models/<model_name>.yaml 두 설정을 통합하여 로드합
     full_config = config.load("gpt-4o")
     
     # 개별 접근
-    wandb_config = config.wandb
     model_config = config.get_model("gpt-4o")
+    defaults = config.defaults
+    
+    # W&B 설정은 환경변수 사용:
+    #   WANDB_ENTITY, WANDB_PROJECT
 """
 
 import os

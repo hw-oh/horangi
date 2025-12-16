@@ -2,11 +2,6 @@
 # Horangi 기본 설정
 # =============================================================================
 
-# WandB 설정
-wandb:
-  entity: horangi
-  project: horangi4
-
 # 테스트 모드 (true면 소량 샘플로 실행)
 testmode: false
 

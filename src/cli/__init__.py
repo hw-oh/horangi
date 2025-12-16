@@ -17,6 +17,12 @@ import subprocess
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+# .env 파일 로드 (프로젝트 루트)
+_project_root = Path(__file__).parent.parent.parent
+load_dotenv(_project_root / ".env")
+
 
 def _ensure_wandb_env() -> bool:
     """
@@ -90,7 +96,7 @@ def _is_openai_compat_api(model_config: dict) -> bool:
     return False
 
 
-def _get_openai_compat_args(model_config: dict, verbose: bool = True) -> list[str]:
+def _get_openai_compat_args(model_config: dict) -> list[str]:
     """
     OpenAI 호환 API를 위한 CLI 인자 생성
     
@@ -111,9 +117,6 @@ def _get_openai_compat_args(model_config: dict, verbose: bool = True) -> list[st
         api_key = os.environ.get(api_key_env)
         if api_key:
             extra_args.extend(["-M", f"api_key={api_key}"])
-            if verbose:
-                masked_key = api_key[:8] + "..." if len(api_key) > 8 else "***"
-                print(f"🔑 {api_key_env} → -M api_key ({masked_key})")
         else:
             print(f"❌ 환경변수 {api_key_env}가 설정되지 않았습니다!")
             print(f"   다음 명령어로 설정하세요: export {api_key_env}=\"your-api-key\"")
@@ -122,8 +125,6 @@ def _get_openai_compat_args(model_config: dict, verbose: bool = True) -> list[st
     base_url = model_config.get("base_url") or model_config.get("api_base")
     if base_url:
         extra_args.extend(["--model-base-url", base_url])
-        if verbose:
-            print(f"🌐 --model-base-url → {base_url}")
     
     return extra_args
 
@@ -281,7 +282,7 @@ def main():
             "편향/안전": ["korean_hate_speech", "kobbq", "ko_hle"],
             "환각 (HalluLens)": ["ko_hallulens_wikiqa", "ko_hallulens_longwiki", "ko_hallulens_generated", "ko_hallulens_mixed", "ko_hallulens_nonexistent"],
             "Function Calling": ["bfcl"],
-            "대화": ["mtbench_ko"],
+            "대화": ["ko_mtbench"],
             "코딩": ["swebench_verified_official_80"],
         }
         
@@ -367,14 +368,32 @@ def main():
                 existing_t_args.add(key)
         
         # defaults 적용
+        # - generate_params: API 요청 시 사용되는 파라미터 (--temperature, --max-tokens 등)
+        # - task_params (-T): task 함수에 전달되는 파라미터
+        # inspect eval CLI에서 직접 지원하는 옵션들 (kebab-case로 변환)
+        generate_param_mapping = {
+            "temperature": "--temperature",
+            "max_tokens": "--max-tokens",
+            "top_p": "--top-p",
+            "top_k": "--top-k",
+            "stop": "--stop-seqs",
+            "frequency_penalty": "--frequency-penalty",
+            "presence_penalty": "--presence-penalty",
+        }
         for key, value in defaults.items():
-            if key not in existing_t_args and key in ("temperature", "max_tokens"):
-                rest_args.extend(["-T", f"{key}={value}"])
+            if key not in existing_t_args:
+                if key in generate_param_mapping:
+                    rest_args.extend([generate_param_mapping[key], str(value)])
+                else:
+                    rest_args.extend(["-T", f"{key}={value}"])  # task 파라미터
         
         # 벤치마크별 오버라이드 적용
         for key, value in benchmark_overrides.items():
             if key not in existing_t_args:
-                rest_args.extend(["-T", f"{key}={value}"])
+                if key in generate_param_mapping:
+                    rest_args.extend([generate_param_mapping[key], str(value)])
+                else:
+                    rest_args.extend(["-T", f"{key}={value}"])  # task 파라미터
         
         # OpenAI 호환 API 인자 추가 (api_key, base_url)
         rest_args.extend(openai_compat_args)
@@ -402,7 +421,7 @@ def main():
         r"^\s*inspect_wandb/weave_evaluation_hooks:",
         r"^\s*inspect_wandb/wandb_models_hooks:",
         r"^\s*weave: Logged in as Weights & Biases user:",
-        r"^\s*weave: View Weave data at https://wandb.ai/",
+        r"^Log: logs/",  # 로컬 로그 파일 경로 숨기기
     )
     
     for line in process.stdout:
