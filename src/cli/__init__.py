@@ -12,21 +12,78 @@ Horangi CLI - 한국어 LLM 벤치마크 평가 도구
 """
 
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
 
 
+def _ensure_wandb_env() -> bool:
+    """
+    WANDB_ENTITY와 WANDB_PROJECT 환경변수 확인 및 설정
+    
+    환경변수가 없으면 사용자에게 입력받아 설정합니다.
+    
+    Returns:
+        True if 환경변수가 설정됨, False if 사용자가 취소
+    """
+    entity = os.environ.get("WANDB_ENTITY")
+    project = os.environ.get("WANDB_PROJECT")
+    
+    if entity and project:
+        return True
+    
+    print("⚠️  W&B 환경변수가 설정되지 않았습니다.")
+    print()
+    
+    if not entity:
+        try:
+            entity = input("WANDB_ENTITY (팀 또는 사용자명): ").strip()
+            if not entity:
+                print("❌ WANDB_ENTITY가 필요합니다.")
+                return False
+            os.environ["WANDB_ENTITY"] = entity
+        except (EOFError, KeyboardInterrupt):
+            print("\n❌ 취소됨")
+            return False
+    
+    if not project:
+        try:
+            project = input("WANDB_PROJECT (프로젝트명): ").strip()
+            if not project:
+                print("❌ WANDB_PROJECT가 필요합니다.")
+                return False
+            os.environ["WANDB_PROJECT"] = project
+        except (EOFError, KeyboardInterrupt):
+            print("\n❌ 취소됨")
+            return False
+    
+    print()
+    print(f"✅ 프로젝트: {entity}/{project}")
+    print()
+    
+    return True
+
+
 def _is_openai_compat_api(model_config: dict) -> bool:
     """
-    OpenAI 호환 API인지 확인 (openai provider + 비 OpenAI base_url)
+    OpenAI 호환 API인지 확인
+    
+    다음 조건 중 하나를 만족하면 OpenAI 호환 API:
+    1. api_provider가 "openai"이고 base_url이 openai.com이 아닌 경우
+    2. model_id가 "openai/"로 시작하고 base_url이 openai.com이 아닌 경우
     
     예: Solar, Grok, Together AI 등
     """
+    api_provider = model_config.get("api_provider")
     model_id = model_config.get("model_id", "")
     base_url = model_config.get("base_url") or model_config.get("api_base")
     
-    # openai/ provider를 사용하면서 base_url이 openai.com이 아닌 경우
+    # api_provider가 openai이고 base_url이 openai.com이 아닌 경우
+    if api_provider == "openai" and base_url:
+        return "openai.com" not in base_url
+    
+    # 기존 방식: openai/ provider를 사용하면서 base_url이 openai.com이 아닌 경우
     if model_id.startswith("openai/") and base_url:
         return "openai.com" not in base_url
     
@@ -93,7 +150,7 @@ def _handle_leaderboard_command(args: list[str]) -> int:
     parser.add_argument(
         "--name", "-n",
         default=None,
-        help="리더보드 이름 (기본: Inspect AI Leaderboard)",
+        help="리더보드 이름 (기본: Korean LLM Leaderboard)",
     )
     parser.add_argument(
         "--description", "-d",
@@ -121,12 +178,16 @@ def _handle_leaderboard_command(args: list[str]) -> int:
     src_path = Path(__file__).parent.parent
     sys.path.insert(0, str(src_path))
     
-    from core.leaderboard import create_leaderboard, LEADERBOARD_NAME, LEADERBOARD_DESCRIPTION
+    from core.weave_leaderboard import (
+        create_weave_leaderboard,
+        LEADERBOARD_NAME,
+        LEADERBOARD_DESCRIPTION,
+    )
     
     name = parsed.name or LEADERBOARD_NAME
     description = parsed.description or LEADERBOARD_DESCRIPTION
     
-    url = create_leaderboard(
+    url = create_weave_leaderboard(
         name=name,
         description=description,
         entity=entity,
@@ -276,13 +337,23 @@ def main():
         # .env의 OPENAI_API_KEY 대신 모델 설정의 api_key_env 사용
         openai_compat_args = _get_openai_compat_args(model_config)
         
-        # model_id를 --model 옵션으로 추가
+        # model_id와 api_provider 처리
+        # model_id: 사용자가 보는 이름 (예: upstage/solar-pro2)
+        # api_provider: 실제 API provider (예: openai - OpenAI 호환 API 사용 시)
         model_id = model_config.get("model_id", config_name)
+        api_provider = model_config.get("api_provider")
+        
+        if api_provider:
+            # api_provider가 지정된 경우: upstage/solar-pro2 → openai/solar-pro2
+            model_name = model_id.split("/")[-1]  # 모델명만 추출
+            inspect_model = f"{api_provider}/{model_name}"
+        else:
+            inspect_model = model_id
         
         # 이미 --model이 지정되어 있지 않으면 추가
         has_model = any(arg == "--model" for arg in rest_args)
         if not has_model:
-            rest_args = ["--model", model_id] + rest_args
+            rest_args = ["--model", inspect_model] + rest_args
         
         # 벤치마크별 설정 적용
         benchmark_overrides = model_config.get("benchmarks", {}).get(benchmark, {})
@@ -308,12 +379,57 @@ def main():
         # OpenAI 호환 API 인자 추가 (api_key, base_url)
         rest_args.extend(openai_compat_args)
     
+    # WANDB 환경변수 확인
+    if not _ensure_wandb_env():
+        return 1
+    
     # inspect eval 명령 구성
     cmd = ["inspect", "eval", f"{horangi_py}@{benchmark}"] + rest_args
     
-    # 실행
-    result = subprocess.run(cmd)
-    return result.returncode
+    # 실행 (출력 캡처하여 Weave Eval URL 추출)
+    process = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+    )
+    
+    weave_eval_url: str | None = None
+    hook_noise_patterns = (
+        r"^inspect_ai v",
+        r"^- hooks enabled:",
+        r"^\s*inspect_wandb/weave_evaluation_hooks:",
+        r"^\s*inspect_wandb/wandb_models_hooks:",
+        r"^\s*weave: Logged in as Weights & Biases user:",
+        r"^\s*weave: View Weave data at https://wandb.ai/",
+    )
+    
+    for line in process.stdout:
+        # Weave Eval URL 추출
+        m = re.search(r"🔗\s*Weave Eval:\s*(https?://\S+)", line)
+        if m:
+            weave_eval_url = m.group(1)
+            continue  # URL 라인은 출력하지 않음 (마지막에 출력)
+        
+        # 노이즈 로그 필터링
+        suppress = False
+        for pat in hook_noise_patterns:
+            if re.search(pat, line):
+                suppress = True
+                break
+        
+        if not suppress:
+            print(line, end="", flush=True)
+    
+    process.wait()
+    
+    # 평가 완료 후 Eval URL 출력
+    if weave_eval_url:
+        print()
+        print(f"🔗 Weave Eval: {weave_eval_url}")
+    
+    return process.returncode
 
 
 if __name__ == "__main__":

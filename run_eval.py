@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import json
 import locale
 import os
 import re
@@ -63,11 +62,11 @@ QUICK_BENCHMARKS = [
 ]
 
 
-def get_model_env(model: str) -> dict[str, str]:
+def get_model_env(config_name: str) -> dict[str, str]:
     """
     모델 설정 파일에서 API 환경변수 생성
     
-    configs/models/<model_name>.yaml 파일에서:
+    configs/models/<config_name>.yaml 파일에서:
     - base_url → OPENAI_BASE_URL (또는 provider별 환경변수)
     - api_key_env → 해당 환경변수에서 API 키 읽기
     
@@ -75,15 +74,16 @@ def get_model_env(model: str) -> dict[str, str]:
         환경변수 딕셔너리
     """
     config = get_config()
-    model_config = config.get_model(model)
+    model_config = config.get_model(config_name)
     
     if not model_config:
         return {}
     
     env = {}
     
-    # Provider 확인 (openai/gpt-4o → openai)
-    provider = model.split("/")[0] if "/" in model else "openai"
+    # Provider 확인 (model_id 기준: openai/solar-pro2 → openai)
+    model_id = model_config.get("model_id") or config_name
+    provider = model_id.split("/")[0] if "/" in model_id else "openai"
     provider_upper = provider.upper()
     
     # Base URL 설정
@@ -137,33 +137,27 @@ def get_model_metadata(model: str) -> dict:
 
 def run_benchmark(
     benchmark: str, 
-    model: str, 
-    limit: int,
-    entity: str | None = None,
-    project: str | None = None,
-    run_id: str | None = None,
+    config_name: str,
+    limit: int | None,
+    wandb_entity: str | None = None,
+    wandb_project: str | None = None,
 ) -> tuple[str, bool, str, dict | None]:
     """
     단일 벤치마크 실행
     
     모델 설정 파일(configs/models/<model>.yaml)의 API 설정을 자동으로 적용합니다.
-    entity/project/run_id가 전달되면 inspect-wandb가 해당 run에 로깅합니다.
     
     Returns:
         (benchmark_name, success, error_message, scores)
     """
-    cmd = [
-        "uv", "run", "horangi",
-        benchmark,
-        "--model", model,
-    ]
+    cmd = ["uv", "run", "horangi", benchmark, "--config", config_name]
     
-    # limit이 지정된 경우에만 추가 (미니 데이터셋은 이미 샘플링되어 있음)
+    # limit이 지정된 경우에만 추가 (null = 전체)
     if limit is not None:
         cmd.extend(["-T", f"limit={limit}"])
     
     # 모델 설정에서 환경변수 로드
-    model_env = get_model_env(model)
+    model_env = get_model_env(config_name)
     
     # 현재 환경변수와 병합 (모델 설정이 우선)
     env = os.environ.copy()
@@ -171,14 +165,13 @@ def run_benchmark(
     
     # inspect_evals의 날짜 파싱 문제 해결을 위해 영어 로케일 설정
     env["LC_TIME"] = "en_US.UTF-8"
-    
-    # W&B 연동을 위한 환경변수 설정
-    if entity:
-        env["WANDB_ENTITY"] = entity
-    if project:
-        env["WANDB_PROJECT"] = project
-    if run_id:
-        env["INSPECT_WANDB_MODELS_PARENT_RUN_ID"] = run_id
+
+    # 각 벤치마크 subprocess(inspect eval)가 기록할 W&B/Weave 프로젝트 강제 지정
+    # (지정하지 않으면 wandb의 기본 project(예: horangi-dev)로 기록될 수 있음)
+    if wandb_entity:
+        env["WANDB_ENTITY"] = wandb_entity
+    if wandb_project:
+        env["WANDB_PROJECT"] = wandb_project
     
     print(f"\n{'='*60}")
     print(f"🏃 Running: {benchmark}")
@@ -198,14 +191,41 @@ def run_benchmark(
         
         # 실시간으로 출력하면서 결과 수집
         output_lines = []
+        weave_eval_url: str | None = None
+        hook_noise_patterns = (
+            r"^inspect_ai v",
+            r"^- hooks enabled:",
+            r"^\s*inspect_wandb/weave_evaluation_hooks:",
+            r"^\s*inspect_wandb/wandb_models_hooks:",
+        )
         for line in process.stdout:
-            print(line, end="", flush=True)  # 실시간 출력
+            # Weave Eval URL은 벤치마크 종료 후에 한 번만 보여주기 위해 캡처만 함
+            m = re.search(r"🔗\s*Weave Eval:\s*(https?://\S+)", line)
+            if m:
+                weave_eval_url = m.group(1)
+            
+            # 불필요한 잡음 로그/중간 URL 라인 필터링
+            suppress = False
+            if m:
+                suppress = True
+            else:
+                for pat in hook_noise_patterns:
+                    if re.search(pat, line):
+                        suppress = True
+                        break
+            
+            if not suppress:
+                print(line, end="", flush=True)  # 실시간 출력
             output_lines.append(line)
         
         process.wait(timeout=1800)  # 30분 타임아웃
         full_output = "".join(output_lines)
         
         success = process.returncode == 0
+        
+        # 벤치마크 종료 후 Weave Eval URL 출력
+        if weave_eval_url:
+            print(f"\n🔗 Weave Eval: {weave_eval_url}")
         
         # 점수 파싱 시도
         scores = None
@@ -294,7 +314,7 @@ def parse_scores_from_output(output: str, benchmark: str) -> dict | None:
         for metric in ["accuracy", "mean", "macro_f1", "f1", "resolved"]:
             if metric in all_metrics:
                 main_score = all_metrics[metric]
-                if metric == "mean" and benchmark != "squad_kor_v1":
+                if metric == "mean" and benchmark == "mtbench_ko":
                     main_score = main_score / 10.0  # mtbench 스케일
                 break
     
@@ -304,128 +324,6 @@ def parse_scores_from_output(output: str, benchmark: str) -> dict | None:
     }
 
 
-def create_leaderboard(
-    model: str,
-    benchmark_scores: dict[str, dict],
-    entity: str,
-    project: str,
-    release_date: str = "unknown",
-    size_category: str = "unknown",
-    model_size: str = "unknown",
-    wandb_run=None,
-    output_csv: str | None = None,
-):
-    """
-    벤치마크 결과로 리더보드 테이블 생성
-    
-    Args:
-        wandb_run: 기존 W&B run 객체 (있으면 해당 run에 로깅, 없으면 새 run 생성)
-    """
-    from core.leaderboard_table import LeaderboardTableBuilder
-    
-    print(f"\n{'='*60}")
-    print(f"🏆 리더보드 테이블 생성")
-    print(f"{'='*60}")
-    
-    # 모델 이름에서 provider 제거 (openai/gpt-4o → gpt-4o)
-    model_name = model.split("/")[-1] if "/" in model else model
-    
-    builder = LeaderboardTableBuilder(
-        entity=entity,
-        project=project,
-        model_name=model_name,
-        release_date=release_date,
-        size_category=size_category,
-        model_size=model_size,
-    )
-    
-    # 벤치마크 결과 추가
-    for benchmark_name, scores in benchmark_scores.items():
-        if scores:
-            builder.add_benchmark_result(benchmark_name, scores)
-            print(f"  ✓ {benchmark_name}: {scores}")
-    
-    if not builder.benchmark_results:
-        print("❌ 수집된 벤치마크 결과가 없습니다.")
-        return None
-    
-    print(f"\n📊 수집된 벤치마크: {len(builder.benchmark_results)}개")
-    
-    # 리더보드 DataFrame 생성
-    print("\n📋 리더보드 테이블 생성 중...")
-    try:
-        df = builder.build_leaderboard_df()
-        glp_radar, glp_detail, alt_radar, alt_detail = builder.build_radar_tables(df)
-    except Exception as e:
-        print(f"⚠️ 테이블 생성 실패: {e}")
-        import traceback
-        traceback.print_exc()
-        return None
-    
-    # W&B에 로깅 (기존 run 사용)
-    if wandb_run is not None:
-        print("📤 W&B run에 리더보드 테이블 로깅 중...")
-        try:
-            # 리더보드 테이블
-            leaderboard_table = wandb.Table(dataframe=df)
-            wandb_run.log({"leaderboard_table": leaderboard_table})
-            
-            # 레이더 테이블
-            wandb_run.log({
-                "glp_radar_table": wandb.Table(dataframe=glp_radar),
-                "glp_detail_radar_table": wandb.Table(dataframe=glp_detail),
-                "alt_radar_table": wandb.Table(dataframe=alt_radar),
-                "alt_detail_radar_table": wandb.Table(dataframe=alt_detail),
-            })
-            
-            # Summary에 주요 점수 저장
-            if 'FINAL_SCORE' in df.columns and len(df) > 0:
-                score = df['FINAL_SCORE'].iloc[0]
-                if score == score:  # not NaN
-                    wandb_run.summary["FINAL_SCORE"] = score
-            if '범용언어성능(GLP)_AVG' in df.columns and len(df) > 0:
-                score = df['범용언어성능(GLP)_AVG'].iloc[0]
-                if score == score:
-                    wandb_run.summary["GLP_AVG"] = score
-            if '가치정렬성능(ALT)_AVG' in df.columns and len(df) > 0:
-                score = df['가치정렬성능(ALT)_AVG'].iloc[0]
-                if score == score:
-                    wandb_run.summary["ALT_AVG"] = score
-            
-            print("✅ W&B 로깅 완료!")
-        except Exception as e:
-            print(f"⚠️ W&B 로깅 실패: {e}")
-    
-    # 결과 출력
-    print("\n" + "=" * 60)
-    print("📊 리더보드 테이블:")
-    print("=" * 60)
-    
-    # 주요 점수 출력
-    if 'FINAL_SCORE' in df.columns and len(df) > 0:
-        score = df['FINAL_SCORE'].iloc[0]
-        if not (score != score):  # NaN check
-            print(f"\n🏆 FINAL_SCORE: {score:.4f}")
-    if '범용언어성능(GLP)_AVG' in df.columns and len(df) > 0:
-        score = df['범용언어성능(GLP)_AVG'].iloc[0]
-        if not (score != score):
-            print(f"   GLP 평균: {score:.4f}")
-    if '가치정렬성능(ALT)_AVG' in df.columns and len(df) > 0:
-        score = df['가치정렬성능(ALT)_AVG'].iloc[0]
-        if not (score != score):
-            print(f"   ALT 평균: {score:.4f}")
-    
-    print("\n📋 전체 테이블:")
-    print(df.T.to_string())
-    
-    # CSV 저장
-    if output_csv:
-        df.to_csv(output_csv, index=False)
-        print(f"\n💾 결과가 {output_csv}에 저장되었습니다.")
-    
-    return df
-
-
 def main():
     parser = argparse.ArgumentParser(
         description="Run benchmarks and create leaderboard",
@@ -433,19 +331,23 @@ def main():
         epilog="""
 예제:
     # 기본 실행 (entity/project는 configs/base_config.yaml에서 로드)
-    uv run python run_eval.py --model openai/gpt-4o-mini
+    uv run python run_eval.py --config gpt-4o
 
     # 빠른 테스트 (가벼운 벤치마크만)
-    uv run python run_eval.py --model openai/gpt-4o-mini --quick
+    uv run python run_eval.py --config gpt-4o --quick
     
     # 특정 벤치마크만 실행
-    uv run python run_eval.py --model openai/gpt-4o-mini --only ko_hellaswag,kmmlu
+    uv run python run_eval.py --config gpt-4o --only ko_hellaswag,kmmlu
 """
     )
     
     # 기본 옵션
-    parser.add_argument("--model", type=str, required=True, 
-                        help="Model to use (e.g., openai/gpt-4o-mini)")
+    parser.add_argument(
+        "--config",
+        type=str,
+        required=True,
+        help="Model config name (configs/models/<name>.yaml, e.g., gpt-4o, solar_pro2)",
+    )
     parser.add_argument("--limit", type=int,
                         help="Number of samples per benchmark")
     parser.add_argument("--quick", action="store_true",
@@ -481,28 +383,38 @@ def main():
     else:
         benchmarks = ALL_BENCHMARKS
     
-    # 모델 이름에서 provider 제거 (openai/gpt-4o → gpt-4o)
-    model_name = args.model.split("/")[-1] if "/" in args.model else args.model
+    # 모델 설정 로드 (configs/models/<name>.yaml)
+    model_cfg = config.get_model(args.config)
+    if not model_cfg:
+        print(f"❌ 모델 설정을 찾을 수 없습니다: {args.config}")
+        print("   configs/models/ 디렉토리에 YAML 파일이 있는지 확인하세요.")
+        sys.exit(1)
+
+    model_id = model_cfg.get("model_id") or args.config
+
+    # 표시용 모델 이름 (openai/solar-pro2 → solar-pro2)
+    model_name = model_id.split("/")[-1] if "/" in model_id else model_id
     
-    # W&B parent run 생성 (inspect-wandb가 이 run에 연결)
     wandb_run = wandb.init(
         entity=entity,
         project=project,
         name=f"eval-{model_name}-{datetime.now().strftime('%Y%m%d_%H%M%S')}",
         job_type="evaluation",
         config={
-            "model": args.model,
+            "config": args.config,
+            "model": model_id,
             "model_name": model_name,
             "limit": args.limit,
             "benchmarks": benchmarks,
         },
     )
-    run_id = wandb_run.id
     print(f"✅ W&B run 시작: {wandb_run.url}")
+    
     
     print(f"\n🐯 Horangi Benchmark Runner")
     print(f"{'='*60}")
-    print(f"Model: {args.model}")
+    print(f"Config: {args.config}")
+    print(f"Model: {model_id}")
     print(f"Limit: {args.limit} samples per benchmark")
     print(f"Benchmarks: {len(benchmarks)} / {len(ALL_BENCHMARKS)}")
     print(f"Leaderboard: {entity}/{project}")
@@ -517,11 +429,10 @@ def main():
         print(f"\n[{i}/{len(benchmarks)}] ", end="")
         name, success, error, scores = run_benchmark(
             benchmark, 
-            args.model, 
+            args.config,
             args.limit,
-            entity=entity,
-            project=project,
-            run_id=run_id,
+            wandb_entity=entity,
+            wandb_project=project,
         )
         results.append((name, success, error))
         
@@ -578,75 +489,27 @@ def main():
                 for metric, value in category_metrics:
                     print(f"   {metric:<30} {value:.4f}")
     
-    # 결과 JSON 파일로 저장
-    results_dir = Path("results")
-    results_dir.mkdir(exist_ok=True)
+    # Weave Leaderboard 생성 (성공한 벤치마크가 있으면)
+    if benchmark_scores and entity and project:
+        try:
+            from core.weave_leaderboard import create_weave_leaderboard
+            # 성공한 벤치마크 목록만 전달
+            successful_benchmarks = list(benchmark_scores.keys())
+            leaderboard_url = create_weave_leaderboard(
+                entity=entity,
+                project=project,
+                benchmarks=successful_benchmarks,
+            )
+            if leaderboard_url:
+                print(f"\n🏆 Leaderboard URL: {leaderboard_url}")
+        except Exception as e:
+            print(f"⚠️ Weave Leaderboard 생성 실패: {e}")
     
-    results_file = results_dir / f"eval_{model_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-    results_data = {
-        "model": args.model,
-        "model_name": model_name,
-        "timestamp": datetime.now().isoformat(),
-        "benchmarks": benchmark_scores,
-        "summary": {
-            "successful": len(successful),
-            "failed": len(failed),
-            "total": len(results),
-        },
-    }
-    
-    with open(results_file, "w", encoding="utf-8") as f:
-        json.dump(results_data, f, indent=2, ensure_ascii=False)
-    
-    print(f"\n💾 Results saved to: {results_file}")
-    
-    # 리더보드 생성 (성공한 벤치마크가 있으면)
-    if benchmark_scores:
-        # 모델 설정에서 메타데이터 로드
-        model_metadata = get_model_metadata(args.model)
-        
-        release_date = model_metadata.get("release_date", "unknown")
-        size_category = model_metadata.get("size_category", "unknown")
-        model_size = model_metadata.get("model_size", "unknown")
-        
-        # W&B Models 테이블 리더보드 생성
-        create_leaderboard(
-            model=args.model,
-            benchmark_scores=benchmark_scores,
-            entity=entity,
-            project=project,
-            release_date=release_date,
-            size_category=size_category,
-            model_size=model_size,
-            wandb_run=wandb_run,
-        )
-        
-        # Weave Leaderboard 생성 (별도 기능)
-        if entity and project:
-            try:
-                from core.weave_leaderboard import create_weave_leaderboard
-                # 성공한 벤치마크 목록만 전달
-                successful_benchmarks = list(benchmark_scores.keys())
-                create_weave_leaderboard(
-                    entity=entity,
-                    project=project,
-                    benchmarks=successful_benchmarks,
-                )
-            except Exception as e:
-                print(f"⚠️ Weave Leaderboard 생성 실패: {e}")
-    
-    # W&B summary에 결과 기록 및 run 종료
-    wandb_run.summary["successful_benchmarks"] = len(successful)
-    wandb_run.summary["failed_benchmarks"] = len(failed)
-    wandb_run.summary["total_benchmarks"] = len(results)
-    
-    for benchmark_name, score_info in benchmark_scores.items():
-        main_score = score_info.get("score")
-        if main_score is not None:
-            wandb_run.summary[f"score/{benchmark_name}"] = round(main_score, 4)
-    
-    wandb_run.finish()
-    print(f"✅ W&B run 완료!")
+    # W&B run 종료
+    if wandb_run is not None:
+        print(f"\n📊 W&B run 종료 중...")
+        wandb_run.finish()
+        print(f"✅ W&B run 완료!")
     
     print(f"\n{'='*60}")
     print(f"End time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")

@@ -6,7 +6,6 @@
 wandb:
   entity: horangi
   project: horangi4
-  project_dataset: horangi4-dataset
 
 # 테스트 모드 (true면 소량 샘플로 실행)
 testmode: false

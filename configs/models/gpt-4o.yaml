@@ -8,7 +8,7 @@ model_id: openai/gpt-4o
 # 모델 메타데이터
 metadata:
   provider: OpenAI
-  name: GPT-4o
+  name: gpt-4o
   release_date: "2024-05-13"
   size_category: None
   model_size: None  # OpenAI는 파라미터 수 비공개

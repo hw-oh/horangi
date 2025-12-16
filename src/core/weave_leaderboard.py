@@ -15,7 +15,6 @@ Inspect AI 평가 결과에서 Weave Leaderboard를 자동으로 생성합니다
     )
 
 Note:
-    - W&B Models 테이블 (leaderboard_table.py)과는 별개로 작동합니다.
     - Weave UI의 Leaderboard 기능을 사용합니다.
 """
 
@@ -37,7 +36,7 @@ LEADERBOARD_DESCRIPTION = """한국어 LLM 벤치마크 모델 성능 비교 리
 📊 벤치마크 카테고리:
 - 언어 이해: ko_hellaswag, kmmlu, kmmlu_pro, haerae_bench
 - 추론: ko_aime2025, ko_gsm8k, ko_arc_agi
-- 지시 따르기: ifeval_ko, ko_balt_700
+- 지시 추종: ifeval_ko, ko_balt_700
 - 안전성/윤리: ko_moral, kobbq, korean_hate_speech
 - 환각: ko_hallulens (wikiqa, longwiki, nonexistent)
 - 지식: ko_truthful_qa, ko_hle
@@ -92,10 +91,8 @@ def build_columns_from_benchmarks(
     BENCHMARK_METRICS = {
         # 기본 choice scorer
         "ko_hellaswag": ("choice", "true_fraction"),
-        "ko_balt_700_syntax": ("choice", "true_fraction"),
-        "ko_balt_700_semantic": ("choice", "true_fraction"),
-        "haerae_bench_v1_rc": ("choice", "true_fraction"),
-        "haerae_bench_v1_wo_rc": ("choice", "true_fraction"),
+        "ko_balt_700": ("choice", "true_fraction"),
+        "haerae_bench_v1": ("choice", "true_fraction"),
         "kmmlu": ("choice", "true_fraction"),
         "kmmlu_pro": ("choice", "true_fraction"),
         "ko_truthful_qa": ("choice", "true_fraction"),
@@ -119,7 +116,6 @@ def build_columns_from_benchmarks(
         
         # HalluLens
         "ko_hallulens_wikiqa": ("hallulens_qa", "true_fraction"),
-        "ko_hallulens_longwiki": ("hallulens_qa", "true_fraction"),
         "ko_hallulens_nonexistent": ("hallulens_refusal", "true_fraction"),
         
         # BFCL
@@ -192,10 +188,8 @@ def create_weave_leaderboard(
         "ko_hellaswag",
         "ko_aime2025",
         "ifeval_ko",
-        "ko_balt_700_syntax",
-        "ko_balt_700_semantic",
-        "haerae_bench_v1_rc",
-        "haerae_bench_v1_wo_rc",
+        "ko_balt_700",
+        "haerae_bench_v1",
         "kmmlu",
         "kmmlu_pro",
         "squad_kor_v1",
@@ -207,7 +201,6 @@ def create_weave_leaderboard(
         "kobbq",
         "ko_hle",
         "ko_hallulens_wikiqa",
-        "ko_hallulens_longwiki",
         "ko_hallulens_nonexistent",
         "bfcl",
         "mtbench_ko",

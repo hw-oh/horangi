@@ -5,9 +5,14 @@
 # 파일명: <model-name>.yaml (예: gpt-4o.yaml, llama-3.yaml)
 # =============================================================================
 
-# 모델 식별자 (inspect eval --model 에 전달되는 값)
-# 형식: provider/model-name
+# 모델 식별자 (표시용)
+# 형식: provider/model-name (예: upstage/solar-pro2, openai/gpt-4o)
 model_id: provider/model-name
+
+# API Provider (선택사항)
+# OpenAI 호환 API 사용 시 "openai" 지정
+# → inspect eval에는 "openai/<model-name>"으로 전달됨
+# api_provider: openai
 
 # 모델 메타데이터 (선택사항, 문서화 및 분석용)
 metadata:

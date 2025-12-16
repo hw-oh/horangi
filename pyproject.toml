@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "inspect-horangi"
+name = "horangi"
 version = "0.1.0"
 description = "한국어 LLM 벤치마크 평가 프레임워크 (Inspect AI + WandB 통합)"
 readme = "README.md"
@@ -48,9 +48,9 @@ dev = [
 google = ["google-genai>=0.1.0"]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/inspect-horangi"
-Documentation = "https://github.com/yourusername/inspect-horangi#readme"
-Repository = "https://github.com/yourusername/inspect-horangi"
+Homepage = "https://github.com/wandb-korea/horangi"
+Documentation = "https://github.com/wandb-korea/horangi#readme"
+Repository = "https://github.com/wandb-korea/horangi"
 
 [tool.hatch.metadata]
 allow-direct-references = true

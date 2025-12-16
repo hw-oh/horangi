@@ -991,6 +991,52 @@ wheels = [
 ]
 
 [[package]]
+name = "horangi"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "anthropic" },
+    { name = "datasets" },
+    { name = "inspect-ai" },
+    { name = "inspect-evals" },
+    { name = "inspect-wandb", extra = ["weave"] },
+    { name = "instruction-following-eval" },
+    { name = "jsonlines" },
+    { name = "openai" },
+    { name = "pandas" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "black" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "ruff" },
+]
+google = [
+    { name = "google-genai" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "anthropic", specifier = ">=0.20.0" },
+    { name = "black", marker = "extra == 'dev'", specifier = ">=23.0.0" },
+    { name = "datasets", specifier = ">=2.18.0" },
+    { name = "google-genai", marker = "extra == 'google'", specifier = ">=0.1.0" },
+    { name = "inspect-ai", git = "https://github.com/hw-oh/inspect_ai.git" },
+    { name = "inspect-evals", specifier = ">=0.3.103" },
+    { name = "inspect-wandb", extras = ["weave"], git = "https://github.com/hw-oh/inspect_wandb.git" },
+    { name = "instruction-following-eval", git = "https://github.com/josejg/instruction_following_eval.git" },
+    { name = "jsonlines", specifier = ">=4.0.0" },
+    { name = "openai", specifier = ">=1.0.0" },
+    { name = "pandas", specifier = ">=2.0.0" },
+    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.0.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
+]
+provides-extras = ["dev", "google"]
+
+[[package]]
 name = "httpcore"
 version = "1.0.9"
 source = { registry = "https://pypi.org/simple" }
@@ -1217,52 +1263,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/ef/84/a4570e6bdc53d23b8
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a0/0b/0ff0694172e01467d41c523ce7068edce505dd82fe7523a9535a2b9e3b95/inspect_evals-0.3.103-py3-none-any.whl", hash = "sha256:5eec8ba366dc627c2e10182659203500ffb4bd8ecb83895b641c21e24ec62fb9", size = 79328863, upload-time = "2025-12-08T20:28:43.654Z" },
 ]
-
-[[package]]
-name = "inspect-horangi"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "anthropic" },
-    { name = "datasets" },
-    { name = "inspect-ai" },
-    { name = "inspect-evals" },
-    { name = "inspect-wandb", extra = ["weave"] },
-    { name = "instruction-following-eval" },
-    { name = "jsonlines" },
-    { name = "openai" },
-    { name = "pandas" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "black" },
-    { name = "pre-commit" },
-    { name = "pytest" },
-    { name = "ruff" },
-]
-google = [
-    { name = "google-genai" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "anthropic", specifier = ">=0.20.0" },
-    { name = "black", marker = "extra == 'dev'", specifier = ">=23.0.0" },
-    { name = "datasets", specifier = ">=2.18.0" },
-    { name = "google-genai", marker = "extra == 'google'", specifier = ">=0.1.0" },
-    { name = "inspect-ai", git = "https://github.com/hw-oh/inspect_ai.git" },
-    { name = "inspect-evals", specifier = ">=0.3.103" },
-    { name = "inspect-wandb", extras = ["weave"], git = "https://github.com/hw-oh/inspect_wandb.git" },
-    { name = "instruction-following-eval", git = "https://github.com/josejg/instruction_following_eval.git" },
-    { name = "jsonlines", specifier = ">=4.0.0" },
-    { name = "openai", specifier = ">=1.0.0" },
-    { name = "pandas", specifier = ">=2.0.0" },
-    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.0.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
-]
-provides-extras = ["dev", "google"]
 
 [[package]]
 name = "inspect-wandb"
