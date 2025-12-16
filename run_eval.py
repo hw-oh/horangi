@@ -417,12 +417,6 @@ def create_leaderboard(
         df.to_csv(output_csv, index=False)
         print(f"\n💾 결과가 {output_csv}에 저장되었습니다.")
     
-    # JSON 저장 (결과 재사용 가능)
-    results_json = Path(f"results_{model_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
-    with open(results_json, 'w') as f:
-        json.dump(benchmark_scores, f, indent=2, ensure_ascii=False)
-    print(f"💾 벤치마크 결과가 {results_json}에 저장되었습니다.")
-    
     return df
 
 
@@ -602,6 +596,7 @@ def main():
         size_category = args.size_category if args.size_category != "unknown" else model_metadata.get("size_category", "unknown")
         model_size = args.model_size if args.model_size != "unknown" else model_metadata.get("model_size", "unknown")
         
+        # 1. W&B Models 테이블 리더보드 생성
         create_leaderboard(
             model=args.model,
             benchmark_scores=benchmark_scores,
@@ -613,6 +608,20 @@ def main():
             wandb_run=wandb_run,
             output_csv=args.output_csv,
         )
+        
+        # 2. Weave Leaderboard 생성 (별도 기능)
+        if args.entity and args.project:
+            try:
+                from core.weave_leaderboard import create_weave_leaderboard
+                # 성공한 벤치마크 목록만 전달
+                successful_benchmarks = list(benchmark_scores.keys())
+                create_weave_leaderboard(
+                    entity=args.entity,
+                    project=args.project,
+                    benchmarks=successful_benchmarks,
+                )
+            except Exception as e:
+                print(f"⚠️ Weave Leaderboard 생성 실패: {e}")
     
     # W&B run 종료
     if wandb_run is not None:
