@@ -4,7 +4,7 @@ from core.benchmark_config import BenchmarkConfig
 
 CONFIG = BenchmarkConfig(
     data_type="weave",
-    data_source="weave:///wandb-korea/evaluation-job/object/AIME2025:ftQYyDm9Tfi2o26wY951oObcJ5BBXsXVYgB36aIqvgo",
+    data_source="weave:///horangi/horangi4/object/KoAIME2025_mini:ODxXSY7bvgJkZm3bio3ylFSuv3LWzET6aq4SlzkZgUA",
     field_mapping={
         "input": "question",
         "target": "answer",

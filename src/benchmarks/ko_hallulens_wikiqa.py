@@ -17,7 +17,7 @@ from core.benchmark_config import BenchmarkConfig
 
 CONFIG = BenchmarkConfig(
     data_type="weave",
-    data_source="weave:///wandb-korea/evaluation-job/object/HalluLens_PreciseWikiQA:latest",
+    data_source="weave:///horangi/horangi4/object/KoHalluLens_WikiQA_mini:rU9poRP5fcXtp7mZsuRYYDNKPK51OkMRJTuXjyXP9WI",
     field_mapping={
         "id": "id",
         "input": "prompt",

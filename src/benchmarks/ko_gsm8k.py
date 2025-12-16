@@ -11,7 +11,7 @@ from core.benchmark_config import BenchmarkConfig
 CONFIG = BenchmarkConfig(
     # base 없음 - 독립 벤치마크
     data_type="weave",
-    data_source="weave:///wandb-korea/evaluation-job/object/GSM8K:H1P7QW8yt60sWy6jXXXkBQH8VElTxB3jf9KCFPzqpO4",
+    data_source="weave:///horangi/horangi4/object/KoGSM8K_mini:xM4iBSffZkeb89tGfn80GDvyV8AplUIww1AiT8E4gp8",
     field_mapping={
         "id": "id",
         "input": "question",

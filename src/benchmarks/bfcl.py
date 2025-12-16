@@ -26,7 +26,7 @@ from core.benchmark_config import BenchmarkConfig
 
 CONFIG = BenchmarkConfig(
     data_type="weave",
-    data_source="weave:///wandb-korea/evaluation-job/object/BFCL_Extended:latest",
+    data_source="weave:///horangi/horangi4/object/BFCL_mini:ODywz9h7BWEfpYfAmkqjwLXQYxrsRWlPXCXNMoo3jTg",
     field_mapping={
         "id": "id",
         "input": "input",

@@ -56,13 +56,22 @@ JUDGE_PROMPT2 = """다음 [응답]이 [정답]과 일치하는지 판단하세�
 """
 
 
+def _is_correct(value) -> bool:
+    """score.value가 정답인지 판단 (숫자/문자열 모두 지원)"""
+    if value == CORRECT or value == "C":
+        return True
+    if isinstance(value, (int, float)) and value == 1:
+        return True
+    return False
+
+
 @metric
 def hle_accuracy() -> Metric:
     """HLE 정확도 (answer_type별 구분 없이 전체)"""
     def metric_fn(scores: list[SampleScore]) -> float:
         if not scores:
             return 0.0
-        correct = sum(1 for s in scores if s.score.value == CORRECT)
+        correct = sum(1 for s in scores if _is_correct(s.score.value))
         return correct / len(scores)
     return metric_fn
 
@@ -74,7 +83,7 @@ def hle_exact_match_accuracy() -> Metric:
         exact_scores = [s for s in scores if s.score.metadata and s.score.metadata.get("answer_type") == "exactMatch"]
         if not exact_scores:
             return 0.0
-        correct = sum(1 for s in exact_scores if s.score.value == CORRECT)
+        correct = sum(1 for s in exact_scores if _is_correct(s.score.value))
         return correct / len(exact_scores)
     return metric_fn
 
@@ -86,7 +95,7 @@ def hle_multiple_choice_accuracy() -> Metric:
         mc_scores = [s for s in scores if s.score.metadata and s.score.metadata.get("answer_type") == "multipleChoice"]
         if not mc_scores:
             return 0.0
-        correct = sum(1 for s in mc_scores if s.score.value == CORRECT)
+        correct = sum(1 for s in mc_scores if _is_correct(s.score.value))
         return correct / len(mc_scores)
     return metric_fn
 

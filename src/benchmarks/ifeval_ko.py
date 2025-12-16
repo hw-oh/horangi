@@ -5,5 +5,5 @@ from core.benchmark_config import BenchmarkConfig
 CONFIG = BenchmarkConfig(
     base="inspect_evals.ifeval.ifeval",
     data_type="weave",
-    data_source="weave:///wandb-korea/evaluation-job/object/IFEval-Ko:SGtm8r2dBuXUnkS402O7vYwzrBGrzYCfrLu7WS2u2No",
+    data_source="weave:///horangi/horangi4/object/IFEval_Ko_mini:qzHRd8tmmARVui2M4dj4P363Ha8L28XQlvvcrUlrHCM",
 )

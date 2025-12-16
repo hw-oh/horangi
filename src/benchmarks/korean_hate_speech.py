@@ -10,7 +10,7 @@ from core.benchmark_config import BenchmarkConfig
 
 CONFIG = BenchmarkConfig(
     data_type="weave",
-    data_source="weave:///wandb-korea/evaluation-job/object/KoreanHateSpeechDetection:RcX2cIyjFOhyI3uPGxNO6M1BtDHsjE2U7yVbVCoXXl8",
+    data_source="weave:///horangi/horangi4/object/KoreanHateSpeech_mini:DBtUl95dG2Xg9qQR49Y250p9oshCMKdkjXdxhvXmLIc",
     field_mapping={
         "id": "id",
         "input": "question",

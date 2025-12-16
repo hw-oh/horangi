@@ -12,7 +12,7 @@ from core.benchmark_config import BenchmarkConfig
 
 CONFIG = BenchmarkConfig(
     data_type="weave",
-    data_source="weave:///wandb-korea/evaluation-job/object/KoMT_Bench:latest",
+    data_source="weave:///horangi/horangi4/object/KoMTBench_mini:GY9L798k1ezXyTlk7ILVZtAK0c3ii1ysPM7y1ahmCag",
     field_mapping={
         "id": "id",
         "input": "turn1",  # 첫 번째 질문이 input

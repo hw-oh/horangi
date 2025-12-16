@@ -4,7 +4,7 @@
 
 ## ✨ 특징
 
-- 🇰🇷 **20개+ 한국어 벤치마크** 지원
+- 🇰🇷 **20여개 한국어 벤치마크** 지원
 - 📊 **WandB/Weave 자동 로깅** - 실험 추적 및 결과 비교
 - 🚀 **다양한 모델 지원** - OpenAI, Claude, Gemini, DeepSeek, EXAONE 등
 - 🔧 **Config 기반** 벤치마크 정의 - 새 벤치마크를 쉽게 추가
@@ -73,87 +73,29 @@ uv run horangi --list
 
 | 중구분 | 소구분 | 벤치마크 | 상세 | 구현 |
 |--------|--------|----------|------|:----:|
-| **기본언어성능** | 구문해석 | `ko_balt_700` | 문장 구조 분석 능력, 문법적 타당성, 문장 성분 간 관계 파악 능력 평가 | ✅ |
-| | 의미해석 | `haerae_bench_v1_rc` | 자연어 의미 해석력, 문맥 기반 추론 능력, 의미적 일관성 평가 | ✅ |
-| **응용언어성능** | 표현 | `mtbench_ko` | 상황/역할 기반 응답 품질, 글쓰기 능력, 인문학적 표현력 평가 (LLM Judge) | ✅ |
+| **기본언어성능** | 구문해석 | `ko_balt_700 (syntac)` | 문장 구조 분석 능력, 문법적 타당성, 문장 성분 간 관계 파악 능력 평가 | ✅ |
+| | 의미해석 | `haerae_bench_v1 (rc)`, `ko_balt_700 (semantic)` | 자연어 의미 해석력, 문맥 기반 추론 능력, 의미적 일관성 평가 | ✅ |
+| **응용언어성능** | 표현 | `mtbench` | 상황/역할 기반 응답 품질, 글쓰기 능력, 인문학적 표현력 평가 (LLM Judge) | ✅ |
 | | ~~번역~~ | ~~korean-parallel-corporal~~ | ~~한영 / 영일 번역~~ | ❌ |
 | | 정보검색 | `squad_kor_v1` | 한국어 질의응답 기반 정보검색 능력 및 증거문구 기반 정답 도출 능력 | ✅ |
-| **지식/질의응답** | 일반적지식 | `kmmlu`, `haerae_bench_v1_wo_rc` | 상식, 기초학문(STEM), 멀티턴 질의응답 기반의 폭넓은 일반지식 이해도 평가 | ✅ |
-| | 전문적지식 | `kmmlu_pro`, `ko_hle` | 의학, 법률, 공학 등 고난도 전문 지식 문제 해결 능력 | ✅ |
-| **추론능력** | 상식적 추론 | `ko_hellaswag` | 문장 완성, 다음 문장 예측을 통한 상식 추론 능력 평가 | ✅ |
-| | 수학적 추론 | `ko_gsm8k`, `ko_aime2025` | 수학 문제 풀이 능력, 연산/정리/추론 정확도, 복잡한 문제 해결 과정 평가 | ✅ |
-| | 논리적 추론 | `mtbench_ko` (reasoning) | 논리적 일관성, 단계별 추론 체계성, 원인-결과 기반 문제 해결능력 측정 | ✅ |
-| | 추상적 추론 | `ko_arc_agi` | 시각적/구조적 추론을 포함한 추상적 문제 해결 평가 | ✅ |
-| **어플리케이션 개발** | 코딩 | `swebench_verified_official_80` | SWE-bench 기반 실제 GitHub 이슈 해결 능력 평가 | ✅ |
-| | 함수호출 | `bfcl_extended`, `bfcl_text` | 함수 호출의 정확성 (단일, 멀티턴, 무관계검출) | ✅ |
+| **지식/질의응답** | 일반적지식 | `kmmlu`, `haerae_bench_v1 (\wo rc)` | 상식, 기초학문(STEM), 멀티턴 질의응답 기반의 폭넓은 일반지식 이해도 평가 | ✅ |
+| | 전문적지식 | `kmmlu_pro`, `hle` | 의학, 법률, 공학 등 고난도 전문 지식 문제 해결 능력 | ✅ |
+| **추론능력** | 상식적 추론 | `hellaswag` | 문장 완성, 다음 문장 예측을 통한 상식 추론 능력 평가 | ✅ |
+| | 수학적 추론 | `gsm8k`, `aime2025` | 수학 문제 풀이 능력, 연산/정리/추론 정확도, 복잡한 문제 해결 과정 평가 | ✅ |
+| | 논리적 추론 | `mtbench (reasoning)` | 논리적 일관성, 단계별 추론 체계성, 원인-결과 기반 문제 해결능력 측정 | ✅ |
+| | 추상적 추론 | `arc_agi` | 시각적/구조적 추론을 포함한 추상적 문제 해결 평가 | ✅ |
+| **어플리케이션 개발** | 코딩 | `swebench_verified_official_80`, `mtbench (coding)` | SWE-bench 기반 실제 GitHub 이슈 해결 능력 평가 | ✅ |
+| | 함수호출 | `bfcl` | 함수 호출의 정확성 (단일, 멀티턴, 무관계검출) | ✅ |
 
 ### 가치정렬성능 (ALT)
 
 | 중구분 | 소구분 | 벤치마크 | 상세 | 구현 |
 |--------|--------|----------|------|:----:|
 | **제어성** | 제어성 | `ifeval_ko` | 지시문 수행 능력, 사용자의 명령을 정확하고 일관되게 따르는 능력 평가 | ✅ |
-| **윤리/도덕** | 윤리/도덕 | `ko_moral` | 사회 규범 준수, 안전한 언어 생성 능력 평가 | ✅ |
+| **윤리/도덕** | 윤리/도덕 | `moral` | 사회 규범 준수, 안전한 언어 생성 능력 평가 | ✅ |
 | **유해성방지** | 유해성방지 | `korean_hate_speech` | 혐오발언, 공격적 발화, 위험 카테고리 탐지 및 억제 능력 평가 | ✅ |
 | **편향성방지** | 편향성방지 | `kobbq` | 한국어 기반 편향성 평가, 특정 집단/속성에 대한 부적절한 일반화 점검 | ✅ |
-| **환각방지** | 환각방지 | `ko_hallulens_*`, `ko_truthful_qa` | 사실성 검증, 근거 기반 답변 생성, 지식 환각 억제 능력 평가 | ✅ |
-
-### 벤치마크 상세
-
-<details>
-<summary><b>HalluLens 환각 평가 (5종)</b></summary>
-
-| 벤치마크 | 설명 | 메트릭 |
-|----------|------|--------|
-| `ko_hallulens_wikiqa` | 짧은 위키 QA | Correct/Hallucination/Refusal |
-| `ko_hallulens_longwiki` | 긴 위키 QA | Correct/Hallucination/Refusal |
-| `ko_hallulens_generated` | 가상 엔티티 거부 | Refusal Rate |
-| `ko_hallulens_mixed` | 혼합 엔티티 거부 | Refusal Rate |
-| `ko_hallulens_nonexistent` | 가상 엔티티 통합 | Refusal Rate |
-
-</details>
-
-<details>
-<summary><b>MT-Bench 한국어 (8 카테고리)</b></summary>
-
-| 카테고리 | 설명 |
-|----------|------|
-| `writing` | 글쓰기 능력, 블로그/이메일 등 |
-| `roleplay` | 역할극 수행 능력 |
-| `reasoning` | 논리적 추론 |
-| `math` | 수학 문제 해결 |
-| `coding` | 코딩 문제 해결 |
-| `extraction` | 정보 추출 |
-| `stem` | STEM 지식 |
-| `humanities` | 인문학 지식 |
-
-- **80개 질문** (카테고리당 10개)
-- **2턴 대화** (Turn 1 → 응답 → Turn 2 → 응답)
-- **LLM Judge** 1-10점 평가
-
-</details>
-
-<details>
-<summary><b>BFCL Function Calling (9 카테고리)</b></summary>
-
-| 벤치마크 | 모드 | 카테고리 |
-|----------|------|----------|
-| `bfcl_extended` | Native Tool Calling | simple, multiple, irrelevance, java, javascript |
-| `bfcl_text` | Text-based (프롬프트) | live_simple, live_multiple, live_relevance, live_irrelevance |
-
-</details>
-
-<details>
-<summary><b>SWE-bench Verified (코딩)</b></summary>
-
-| 벤치마크 | 설명 |
-|----------|------|
-| `swebench_verified_official_80` | 80개 검증된 GitHub 이슈 해결 |
-
-- **실제 오픈소스 이슈** 기반 패치 생성
-- **외부 채점 서버** 사용 (Docker 환경 불필요)
-- **Unified Diff 형식** 패치 생성
-
-</details>
+| **환각방지** | 환각방지 | `hallulens`, `truthful_qa` | 사실성 검증, 근거 기반 답변 생성, 지식 환각 억제 능력 평가 | ✅ |
 
 ## 🔧 옵션
 
@@ -168,6 +110,102 @@ uv run horangi --list
 --model anthropic/claude-4-5-sonnet
 --model google/gemini-3-pro
 ```
+
+## 🗜️ 미니 벤치마크 데이터셋
+
+수십 개 모델을 빠르게 평가하기 위한 **미니 버전 데이터셋**을 생성할 수 있습니다.
+
+### 생성 기준
+
+| 기준 | 설명 |
+|------|------|
+| **기본 샘플 수** | 100개 (원본이 100개 미만이면 전체 사용) |
+| **Stratified Sampling** | 카테고리가 있는 데이터셋은 원본 분포 비율 유지 |
+| **랜덤 시드** | 42 (재현성 보장) |
+
+### 데이터셋별 샘플 수
+
+| 벤치마크 | 원본 | 미니 | 비고 |
+|----------|-----:|-----:|------|
+| **ko_hellaswag** | 39,905 | 100 | label 4개 분포 유지 |
+| **ko_aime2025** | 30 | 30 | 전체 사용 |
+| **ifeval_ko** | 342 | 100 | |
+| **haerae_bench_v1** | 1,538 | **200** | rc 100개 + wo_rc 100개 (통합) |
+| **ko_balt_700** | 515 | **200** | syntax 100개 + semantic 100개 (통합) |
+| **kmmlu** | 35,030 | 100 | category 45개 분포 유지 |
+| **kmmlu_pro** | 2,822 | 100 | |
+| **squad_kor_v1** | 5,774 | 100 | |
+| **ko_truthful_qa** | 817 | 100 | |
+| **ko_moral** | 45,215 | 100 | |
+| **ko_arc_agi** | 400 | 100 | |
+| **ko_gsm8k** | 1,319 | 100 | |
+| **korean_hate_speech** | 8,367 | 100 | |
+| **kobbq** | 81,128 | 100 | category 10개 분포 유지 |
+| **ko_hle** | 2,158 | 100 | category 8개 분포 유지 |
+| **ko_hallulens_wikiqa** | 1,433 | 100 | |
+| **ko_hallulens_longwiki** | 250 | 100 | |
+| **ko_hallulens_nonexistent** | 9,950 | 100 | category 2개 분포 유지 |
+| **bfcl** | 258 | 258 | 전체 사용 (category 9개) |
+| **mtbench_ko** | 80 | 80 | 전체 사용 (category 8개) |
+| **swebench_verified_official_80** | 80 | 80 | 전체 사용 |
+| **총합** | **237,411** | **~2,348** | 약 99% 압축 |
+
+### 미니 데이터셋 생성
+
+```bash
+# 생성 스크립트 실행
+uv run python create_benchmark/create_mini_benchmarks.py
+
+# 출력 디렉토리 지정
+uv run python create_benchmark/create_mini_benchmarks.py --output-dir src/data/mini
+
+# 다른 시드 사용
+uv run python create_benchmark/create_mini_benchmarks.py --seed 123
+```
+
+### 통합 데이터셋 설명
+
+일부 벤치마크는 여러 소스를 합쳐서 하나의 미니 데이터셋으로 생성됩니다:
+
+- **`haerae_bench_v1_mini.jsonl`**: 
+  - `haerae_bench_v1_rc` (독해 포함): 100개
+  - `haerae_bench_v1_wo_rc` (독해 제외, 5개 카테고리 분포 유지): 100개
+  - 총 200개
+
+- **`ko_balt_700_mini.jsonl`**:
+  - `ko_balt_700_syntax` (통사론): 100개
+  - `ko_balt_700_semantic` (의미론): 100개
+  - 총 200개
+
+각 샘플에는 `_source` 필드가 추가되어 원본 데이터셋을 추적할 수 있습니다.
+
+### Weave 미니 데이터셋 참조
+
+미니 데이터셋은 `horangi/horangi4` 프로젝트에 업로드되어 있습니다:
+
+| 데이터셋 | Weave Ref |
+|----------|-----------|
+| KoHellaSwag_mini | `weave:///horangi/horangi4/object/KoHellaSwag_mini:w5y3uB67dxszTK1uXakGqD2IYKZSrsW1AYQcPH9hIE8` |
+| KoAIME2025_mini | `weave:///horangi/horangi4/object/KoAIME2025_mini:ODxXSY7bvgJkZm3bio3ylFSuv3LWzET6aq4SlzkZgUA` |
+| IFEval_Ko_mini | `weave:///horangi/horangi4/object/IFEval_Ko_mini:qzHRd8tmmARVui2M4dj4P363Ha8L28XQlvvcrUlrHCM` |
+| KMMLU_mini | `weave:///horangi/horangi4/object/KMMLU_mini:BKMMNPwQlldJ6rjGxCPJxEX2thu3XVsEfiYQdf2BHTA` |
+| KMMLU_Pro_mini | `weave:///horangi/horangi4/object/KMMLU_Pro_mini:Qbju8ttQj6C4HwI6N2UG7bqB1OnHTZ21IqluhZuiMsM` |
+| SQuAD_Kor_v1_mini | `weave:///horangi/horangi4/object/SQuAD_Kor_v1_mini:DXbPOb1F6e8rnKDYJXOhgc5L16ZnaKXrx2EynK4vj6o` |
+| KoTruthfulQA_mini | `weave:///horangi/horangi4/object/KoTruthfulQA_mini:aXWwop2uqxplEhdvz576gyfUO4NSkrGNko7hguxueic` |
+| KoMoral_mini | `weave:///horangi/horangi4/object/KoMoral_mini:dleEC4Y9ibeC4YAScIEji2CFBX0hXloQX3dvuUubXBo` |
+| KoARC_AGI_mini | `weave:///horangi/horangi4/object/KoARC_AGI_mini:HSzsUWJnTXMYwOtS8A6wyfHM1DqsoTugtpBOwmvBuoA` |
+| KoGSM8K_mini | `weave:///horangi/horangi4/object/KoGSM8K_mini:xM4iBSffZkeb89tGfn80GDvyV8AplUIww1AiT8E4gp8` |
+| KoreanHateSpeech_mini | `weave:///horangi/horangi4/object/KoreanHateSpeech_mini:DBtUl95dG2Xg9qQR49Y250p9oshCMKdkjXdxhvXmLIc` |
+| KoBBQ_mini | `weave:///horangi/horangi4/object/KoBBQ_mini:p12gIldwSX2XweDFuDyBJkq09b4X5crbw8tcx73nxR8` |
+| KoHLE_mini | `weave:///horangi/horangi4/object/KoHLE_mini:UrNXEnhaUHDoqButTAy204OEEevet6Pa1iSRYfnnnPY` |
+| KoHalluLens_WikiQA_mini | `weave:///horangi/horangi4/object/KoHalluLens_WikiQA_mini:rU9poRP5fcXtp7mZsuRYYDNKPK51OkMRJTuXjyXP9WI` |
+| KoHalluLens_LongWiki_mini | `weave:///horangi/horangi4/object/KoHalluLens_LongWiki_mini:VktVotlYffXkFz0VT5sKgXrEmItplwFb3R97zb6syEA` |
+| KoHalluLens_NonExistent_mini | `weave:///horangi/horangi4/object/KoHalluLens_NonExistent_mini:suMhzXfycG79qMYN3AjVQqGwtyFst1NFsbWdhk1jJTk` |
+| BFCL_mini | `weave:///horangi/horangi4/object/BFCL_mini:ODywz9h7BWEfpYfAmkqjwLXQYxrsRWlPXCXNMoo3jTg` |
+| KoMTBench_mini | `weave:///horangi/horangi4/object/KoMTBench_mini:GY9L798k1ezXyTlk7ILVZtAK0c3ii1ysPM7y1ahmCag` |
+| SWEBench_Verified_80_mini | `weave:///horangi/horangi4/object/SWEBench_Verified_80_mini:AltUnANYMU9aYgmhrbKaKogRumY5eJt2lgECAbKax7w` |
+| HAERAE_Bench_v1_mini | `weave:///horangi/horangi4/object/HAERAE_Bench_v1_mini:AUDj1Yc8irM87b4DOXS9LK31AXfCPo8Uh8aEXyGa9J4` |
+| KoBALT_700_mini | `weave:///horangi/horangi4/object/KoBALT_700_mini:RXgDQTYja0ZySmuQhH0xRmEA36UJPH7YQcf1LrpD9o0` |
 
 ## 📁 프로젝트 구조
 

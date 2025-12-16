@@ -329,6 +329,10 @@ def create_benchmark(
     sampling = config.get("sampling")
     sampling_by = config.get("sampling_by")
     
+    # limit이 문자열 "None"으로 전달될 수 있으므로 처리
+    if isinstance(limit, str):
+        limit = None if limit.lower() == "none" else int(limit)
+    
     if limit and sampling and sampling_by:
         if sampling == "stratified":
             rows = _stratified_sample(rows, sampling_by, limit)
