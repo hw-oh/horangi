@@ -1,484 +1,435 @@
 #!/usr/bin/env python3
 """
-SWE-bench Evaluation Server
+Minimal SWE-Bench Scoring API Server (single-node)
 
-Docker 기반으로 SWE-bench 패치를 평가하는 API 서버입니다.
+Endpoints:
+- POST /v1/jobs: submit a scoring job for one instance_id with a patch
+- GET  /v1/jobs/{job_id}: get status and (if finished) result summary
+- GET  /v1/jobs/{job_id}/logs: get simple log text (best-effort)
+
+Security:
+- Optional API key via header: X-API-Key. If env SWE_API_KEY is set, it is enforced.
+
+Notes:
+- This server loads the instance from HuggingFace dataset (SWE-bench Verified test split)
+- It runs the official harness (swebench.harness.run_evaluation) on a temp dataset
+- Requires Docker daemon access on this host
 
 Usage:
     # 서버 시작
-    uv run python -m server.swebench_server --host 0.0.0.0 --port 8000
-
-    # 또는
-    uv run python src/server/swebench_server.py --host 0.0.0.0 --port 8000
+    uv run python src/server/swebench_server.py
 
     # 백그라운드 실행
-    nohup python -m server.swebench_server --host 0.0.0.0 --port 8000 \
+    nohup uv run python src/server/swebench_server.py \
         >/tmp/swebench_server.out 2>&1 & disown
 
 Reference:
     https://github.com/wandb/llm-leaderboard/blob/main/scripts/server/swebench_server.py
 """
 
-import argparse
+from __future__ import annotations
+
 import asyncio
 import json
-import logging
 import os
+import sys
 import tempfile
 import time
-import uuid
+import traceback
 from dataclasses import dataclass, field
-from enum import Enum
+import re
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
-from fastapi import FastAPI, HTTPException, Header, BackgroundTasks
-from pydantic import BaseModel
-import uvicorn
-
-# ============================================================================
-# Logging
-# ============================================================================
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger("swebench_server")
+from fastapi import FastAPI, HTTPException, Depends, Header
+from fastapi.responses import PlainTextResponse, JSONResponse
+from pydantic import BaseModel, Field
+from dotenv import load_dotenv
 
 
-# ============================================================================
-# Configuration
-# ============================================================================
-class Settings:
-    """서버 설정"""
-    API_KEY: Optional[str] = os.getenv("SWE_API_KEY")
-    MAX_CONCURRENT_JOBS: int = int(os.getenv("SWE_MAX_JOBS", "4"))
-    JOB_TIMEOUT_SEC: int = int(os.getenv("SWE_JOB_TIMEOUT", "1800"))  # 30분
-    PREBUILD_IMAGES: bool = os.getenv("SWE_PREBUILD_IMAGES", "true").lower() == "true"
+# ------------------------------
+# Models
+# ------------------------------
+
+class JobCreate(BaseModel):
+    instance_id: str = Field(..., description="SWE-bench Verified instance_id")
+    patch_diff: str = Field(..., description="Unified diff to apply (model_patch)")
+    namespace: str = Field("swebench", description="Docker registry namespace")
+    tag: str = Field("latest", description="Instance image tag")
+    timeout_sec: int = Field(1800, description="Evaluation timeout in seconds")
+    model_name_or_path: str = Field(
+        default="horangi",
+        description="Identifier recorded in predictions (used by official harness)",
+    )
 
 
-settings = Settings()
-
-
-# ============================================================================
-# Data Models
-# ============================================================================
-class JobStatus(str, Enum):
-    PENDING = "pending"
-    RUNNING = "running"
-    FINISHED = "finished"
-    FAILED = "failed"
-
-
-class JobCreateRequest(BaseModel):
-    instance_id: str
-    patch_diff: str
-    namespace: str = "swebench"
-    tag: str = "latest"
-    timeout_sec: int = 1800
-    model_name_or_path: str = "horangi"
-
-
-class JobCreateResponse(BaseModel):
-    job_id: str
-    status: str = "pending"
-
-
-class JobStatusResponse(BaseModel):
+class JobStatus(BaseModel):
     job_id: str
     status: str
-    instance_id: str
     created_at: float
+    started_at: Optional[float] = None
     finished_at: Optional[float] = None
     error: Optional[str] = None
-
-
-class JobReportResponse(BaseModel):
-    job_id: str
-    instance_id: str
-    resolved_ids: list[str]
-    unresolved_ids: list[str]
-    error_ids: list[str]
+    result: Optional[Dict[str, Any]] = None
 
 
 @dataclass
-class Job:
+class InternalJob:
     job_id: str
-    instance_id: str
-    patch_diff: str
-    namespace: str
-    tag: str
-    timeout_sec: int
-    model_name_or_path: str
-    status: JobStatus = JobStatus.PENDING
-    created_at: float = field(default_factory=time.time)
+    req: JobCreate
+    created_at: float = field(default_factory=lambda: time.time())
+    started_at: Optional[float] = None
     finished_at: Optional[float] = None
+    status: str = "queued"  # queued | running | finished | failed
     error: Optional[str] = None
-    report: Optional[dict] = None
+    result: Optional[Dict[str, Any]] = None
+    log_buffer: list[str] = field(default_factory=list)
+    work_dir: Optional[Path] = None
 
 
-# ============================================================================
-# Job Store (In-Memory)
-# ============================================================================
-class JobStore:
-    def __init__(self):
-        self._jobs: dict[str, Job] = {}
-        self._lock = asyncio.Lock()
+# ------------------------------
+# Auth
+# ------------------------------
 
-    async def create(self, req: JobCreateRequest) -> Job:
-        async with self._lock:
-            job_id = str(uuid.uuid4())
-            job = Job(
-                job_id=job_id,
-                instance_id=req.instance_id,
-                patch_diff=req.patch_diff,
-                namespace=req.namespace,
-                tag=req.tag,
-                timeout_sec=req.timeout_sec,
-                model_name_or_path=req.model_name_or_path,
-            )
-            self._jobs[job_id] = job
-            return job
-
-    async def get(self, job_id: str) -> Optional[Job]:
-        return self._jobs.get(job_id)
-
-    async def update(self, job: Job):
-        async with self._lock:
-            self._jobs[job.job_id] = job
+def get_api_key(x_api_key: Optional[str] = Header(default=None)) -> Optional[str]:
+    return x_api_key
 
 
-job_store = JobStore()
+def require_api_key(x_api_key: Optional[str] = Depends(get_api_key)) -> None:
+    load_dotenv()
+    expected = os.getenv("SWE_API_KEY")
+    if expected:
+        if not x_api_key or x_api_key != expected:
+            raise HTTPException(status_code=401, detail="Unauthorized")
 
 
-# ============================================================================
-# SWE-bench Runner
-# ============================================================================
-class SWEBenchRunner:
-    """
-    swebench 라이브러리를 사용해서 패치를 평가합니다.
+# ------------------------------
+# App & State
+# ------------------------------
+
+app = FastAPI(title="SWE-Bench Scoring API", version="0.1.0")
+
+JOB_STORE: dict[str, InternalJob] = {}
+JOB_QUEUE: "asyncio.Queue[str]" = asyncio.Queue()
+
+
+# ------------------------------
+# Utilities
+# ------------------------------
+
+def _log(job: InternalJob, msg: str) -> None:
+    ts = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+    job.log_buffer.append(f"[{ts}] {msg}")
+
+
+def _format_instance_id_for_image(instance_id: str) -> str:
+    return instance_id.replace("__", "_1776_").lower()
+
+
+def _load_verified_instance(instance_id: str) -> Dict[str, Any]:
+    from datasets import load_dataset
+    ds = load_dataset("princeton-nlp/SWE-bench_Verified", split="test")
+    for item in ds:
+        if item["instance_id"] == instance_id:
+            return dict(item)
+    raise KeyError(f"instance_id not found: {instance_id}")
+
+
+def _run_single_evaluation(job: InternalJob) -> Dict[str, Any]:
+    """Run official harness for a single instance using a temp dataset+pred file."""
+    req = job.req
+    job.started_at = time.time()
+    _log(job, "Loading instance from HF dataset...")
+    instance = _load_verified_instance(req.instance_id)
+
+    # Prepare temp working directory
+    work_dir = Path(tempfile.mkdtemp(prefix=f"swebench_job_{job.job_id}_"))
+    job.work_dir = work_dir
+    dataset_file = work_dir / "eval_dataset.jsonl"
+    predictions_file = work_dir / "predictions.jsonl"
+
+    # Write single-instance dataset
+    with open(dataset_file, "w", encoding="utf-8") as f:
+        f.write(json.dumps({
+            "repo": instance["repo"],
+            "instance_id": instance["instance_id"],
+            "base_commit": instance["base_commit"],
+            "patch": instance["patch"],
+            "test_patch": instance["test_patch"],
+            "problem_statement": instance["problem_statement"],
+            "hints_text": instance.get("hints_text", ""),
+            "created_at": instance["created_at"],
+            "version": instance["version"],
+            "FAIL_TO_PASS": instance["FAIL_TO_PASS"],
+            "PASS_TO_PASS": instance["PASS_TO_PASS"],
+            "environment_setup_commit": instance.get("environment_setup_commit", ""),
+        }, ensure_ascii=False) + "\n")
+
+    # DEBUG: Temporarily disable patch processing to identify the issue
+    patch_text = req.patch_diff
+    _log(job, f"Original patch: {repr(patch_text[:200])}")
     
-    Prerequisites:
-        pip install swebench
-    """
+    # Just ensure 'diff --git' header exists (without any other processing)
+    if patch_text and "diff --git" not in patch_text:
+        lines = patch_text.splitlines()
+        a_line = next((ln for ln in lines if ln.startswith("--- ")), None)
+        b_line = next((ln for ln in lines if ln.startswith("+++ ")), None)
+        if a_line and b_line:
+            try:
+                a_path = a_line.split()[1]
+                b_path = b_line.split()[1]
+                header = f"diff --git {a_path} {b_path}\n"
+                patch_text = header + patch_text
+                _log(job, "Inserted missing 'diff --git' header")
+            except Exception:
+                pass
     
-    def __init__(self, prebuild_images: bool = True):
-        self.prebuild_images = prebuild_images
-        self._semaphore = asyncio.Semaphore(settings.MAX_CONCURRENT_JOBS)
+    # Ensure trailing newline
+    if patch_text and not patch_text.endswith('\n'):
+        patch_text = patch_text + '\n'
+        _log(job, "Added trailing newline to patch")
 
-    async def run_evaluation(self, job: Job) -> dict:
-        """
-        패치를 적용하고 테스트를 실행합니다.
-        
-        Returns:
-            {
-                "resolved_ids": [...],
-                "unresolved_ids": [...],
-                "error_ids": [...],
-            }
-        """
-        async with self._semaphore:
-            return await asyncio.to_thread(self._run_sync, job)
+    # Write predictions (model patch)
+    with open(predictions_file, "w", encoding="utf-8") as f:
+        f.write(json.dumps({
+            "instance_id": req.instance_id,
+            "model_name_or_path": req.model_name_or_path,
+            "model_patch": patch_text,
+        }, ensure_ascii=False) + "\n")
 
-    def _run_sync(self, job: Job) -> dict:
-        """동기적으로 swebench 평가 실행"""
+    _log(job, "Starting official harness evaluation...")
+    from swebench.harness.run_evaluation import main as run_evaluation
 
-        # 1) 패치를 임시 파일로 저장
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".patch", delete=False
-        ) as f:
-            f.write(job.patch_diff)
-            patch_file = f.name
+    run_id = f"api_{int(time.time())}"
+    formatted = _format_instance_id_for_image(req.instance_id)
+    namespace = req.namespace
+    image_tag = req.tag
 
-        # 2) predictions JSON 생성
-        predictions = [
-            {
-                "instance_id": job.instance_id,
-                "model_name_or_path": job.model_name_or_path,
-                "model_patch": job.patch_diff,
-            }
-        ]
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
-            json.dump(predictions, f)
-            predictions_file = f.name
+    # Run evaluation for one instance
+    res = run_evaluation(
+        dataset_name=str(dataset_file),
+        split="train",
+        instance_ids=[req.instance_id],
+        predictions_path=str(predictions_file),
+        max_workers=1,
+        force_rebuild=False,
+        cache_level="env",
+        clean=False,
+        open_file_limit=4096,
+        run_id=run_id,
+        timeout=req.timeout_sec,
+        namespace=namespace,
+        rewrite_reports=False,
+        modal=False,
+        instance_image_tag=image_tag,
+        report_dir=str(work_dir),
+    )
 
+    # Normalize result into a dict
+    result_dict: Dict[str, Any]
+    try:
+        if isinstance(res, dict):
+            result_dict = res
+        elif isinstance(res, (str, Path)):
+            result_dict = {"report_path": str(res)}
+        else:
+            result_dict = {"result_repr": repr(res)}
+    except Exception:
+        result_dict = {"result_repr": repr(res)}
+
+    # Attach helpful references
+    result_dict["work_dir"] = str(work_dir)
+    result_dict["image"] = f"{namespace}/sweb.eval.x86_64.{formatted}:{image_tag}"
+    # Best-effort: log a short summary if possible
+    try:
+        report_path = result_dict.get("report_path")
+        if report_path and Path(report_path).exists():
+            with open(report_path, "r", encoding="utf-8") as rf:
+                rep = json.load(rf)
+            iid = req.instance_id
+            resolved_ids = set(rep.get("resolved_ids", []))
+            is_resolved = iid in resolved_ids
+            _log(job, f"Result for {iid}: resolved: {is_resolved}")
+    except Exception:
+        pass
+    return result_dict
+
+
+# NOTE: expand_hunk_headers is removed to maintain compatibility with local evaluator
+
+
+def _fix_split_headers(patch: str) -> str:
+    """Join broken file header lines where the path got split by newline.
+
+    Mirrors evaluator behavior to increase robustness.
+    """
+    if not patch:
+        return patch
+    lines = patch.split("\n")
+    fixed_lines: list[str] = []
+    i = 0
+    header_start = ("--- ", "+++ ")
+    while i < len(lines):
+        line = lines[i]
+        if line.startswith(header_start):
+            if not re.search(r"\.[a-zA-Z0-9]+$", line) and (i + 1) < len(lines):
+                j = i + 1
+                joined = line
+                while j < len(lines):
+                    next_line = lines[j]
+                    if next_line.startswith(("@@ ", "diff ", "--- ", "+++ ")):
+                        break
+                    joined += next_line.strip("\n")
+                    j += 1
+                fixed_lines.append(joined)
+                i = j
+                continue
+        fixed_lines.append(line)
+        i += 1
+    return "\n".join(fixed_lines)
+
+
+# --- extend patch apply commands in official harness to allow higher fuzz ---
+try:
+    from swebench.harness.run_evaluation import GIT_APPLY_CMDS  # type: ignore
+    _EXTRA_CMDS = [
+        "patch --batch --fuzz=10 -p1 -i",
+        "patch --batch --fuzz=20 -p1 -i",
+    ]
+    for _cmd in _EXTRA_CMDS:
+        if _cmd not in GIT_APPLY_CMDS:
+            GIT_APPLY_CMDS.append(_cmd)
+except Exception:
+    pass
+
+
+async def worker_loop():
+    """並列実行用のワーカー。
+    注意: 評価処理は同期関数なので、イベントループをブロックしないようスレッドにオフロードする。
+    """
+    while True:
+        job_id = await JOB_QUEUE.get()
+        job = JOB_STORE.get(job_id)
+        if not job:
+            JOB_QUEUE.task_done()
+            continue
+        job.status = "running"
         try:
-            # 3) swebench harness 실행
-            result = self._run_harness(
-                predictions_path=predictions_file,
-                instance_ids=[job.instance_id],
-                timeout=job.timeout_sec,
-            )
-            return result
+            # ブロッキングな評価処理をスレッドにオフロード
+            res = await asyncio.to_thread(_run_single_evaluation, job)
+            job.result = res
+            job.status = "finished"
+            job.finished_at = time.time()
+            _log(job, "Evaluation finished")
+        except Exception:
+            job.status = "failed"
+            job.finished_at = time.time()
+            err = traceback.format_exc()
+            job.error = err
+            _log(job, f"Evaluation failed: {err}")
         finally:
-            # 임시 파일 정리
-            Path(patch_file).unlink(missing_ok=True)
-            Path(predictions_file).unlink(missing_ok=True)
-
-    def _run_harness(
-        self,
-        predictions_path: str,
-        instance_ids: list[str],
-        timeout: int,
-    ) -> dict:
-        """
-        swebench harness 실행 (swebench 2.x 호환)
-        
-        llm-leaderboard 스타일로 subprocess 기반 실행.
-        swebench 2.x와 4.x 모두 지원합니다.
-        
-        Note: swebench와 Docker가 설치되어 있어야 합니다.
-        """
-        import subprocess
-        import shutil
-        
-        try:
-            with tempfile.TemporaryDirectory() as run_dir:
-                run_id = str(uuid.uuid4())[:8]
-                log_dir = Path(run_dir) / "logs"
-                log_dir.mkdir(parents=True, exist_ok=True)
-                
-                # swebench CLI 실행 (2.x와 4.x 모두 지원)
-                cmd = [
-                    "python", "-m", "swebench.harness.run_evaluation",
-                    "--predictions_path", predictions_path,
-                    "--swe_bench_tasks", "princeton-nlp/SWE-bench_Verified",
-                    "--log_dir", str(log_dir),
-                    "--testbed", run_dir,
-                    "--timeout", str(timeout),
-                    "--run_id", run_id,
-                    "--verbose",
-                ]
-                
-                # instance_ids 추가
-                if instance_ids:
-                    cmd.extend(["--instance_ids"] + instance_ids)
-                
-                logger.info(f"Running swebench: {' '.join(cmd[:6])}...")
-                
-                result = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                    timeout=timeout + 300,  # CLI 타임아웃 여유
-                    cwd=run_dir,
-                )
-                
-                if result.returncode != 0:
-                    logger.warning(f"swebench exit code: {result.returncode}")
-                    if result.stderr:
-                        logger.warning(f"stderr: {result.stderr[:500]}")
-                
-                # 결과 파싱
-                resolved_ids = []
-                unresolved_ids = []
-                error_ids = []
-                
-                # 1. report.json 확인 (swebench가 생성)
-                report_files = list(log_dir.glob("**/report.json"))
-                if report_files:
-                    with open(report_files[0]) as f:
-                        report = json.load(f)
-                    resolved_ids = report.get("resolved", [])
-                    unresolved_ids = [
-                        iid for iid in instance_ids 
-                        if iid not in resolved_ids and iid not in error_ids
-                    ]
-                else:
-                    # 2. 로그 파일에서 결과 파싱 (fallback)
-                    for instance_id in instance_ids:
-                        # 여러 가능한 로그 파일 위치 확인
-                        log_patterns = [
-                            log_dir / f"{instance_id}.log",
-                            log_dir / run_id / f"{instance_id}.log",
-                            *list(log_dir.glob(f"**/{instance_id}*.log")),
-                        ]
-                        
-                        found = False
-                        for log_file in log_patterns:
-                            if isinstance(log_file, Path) and log_file.exists():
-                                content = log_file.read_text()
-                                if "PASSED" in content or "RESOLVED" in content.upper():
-                                    resolved_ids.append(instance_id)
-                                else:
-                                    unresolved_ids.append(instance_id)
-                                found = True
-                                break
-                        
-                        if not found:
-                            error_ids.append(instance_id)
-
-                return {
-                    "resolved_ids": resolved_ids,
-                    "unresolved_ids": unresolved_ids,
-                    "error_ids": error_ids,
-                }
-
-        except subprocess.TimeoutExpired:
-            logger.error(f"swebench timed out after {timeout + 300}s")
-            return {
-                "resolved_ids": [],
-                "unresolved_ids": [],
-                "error_ids": instance_ids,
-            }
-        except FileNotFoundError:
-            logger.error("swebench not found. Run: pip install 'swebench>=2.0.0,<3.0.0'")
-            return {
-                "resolved_ids": [],
-                "unresolved_ids": [],
-                "error_ids": instance_ids,
-            }
-        except Exception as e:
-            logger.exception(f"Harness execution failed: {e}")
-            return {
-                "resolved_ids": [],
-                "unresolved_ids": [],
-                "error_ids": instance_ids,
-            }
+            JOB_QUEUE.task_done()
 
 
-runner = SWEBenchRunner(prebuild_images=settings.PREBUILD_IMAGES)
+@app.on_event("startup")
+async def _startup():
+    # Start N workers (env SWE_WORKERS)
+    try:
+        n_workers = int(os.environ.get("SWE_WORKERS", "1"))
+    except Exception:
+        n_workers = 1
+    n_workers = max(1, min(n_workers, 32))
+    for _ in range(n_workers):
+        asyncio.create_task(worker_loop())
 
 
-# ============================================================================
-# FastAPI App
-# ============================================================================
-app = FastAPI(
-    title="SWE-bench Evaluation Server",
-    description="Docker 기반 SWE-bench 패치 평가 서버",
-    version="1.0.0",
-)
-
-
-def verify_api_key(x_api_key: Optional[str] = Header(None)):
-    """API 키 검증 (설정된 경우에만)"""
-    if settings.API_KEY and x_api_key != settings.API_KEY:
-        raise HTTPException(status_code=401, detail="Invalid API key")
-
+# ------------------------------
+# Routes
+# ------------------------------
 
 @app.get("/health")
 async def health():
-    """헬스 체크"""
+    """Health check endpoint"""
     return {"status": "ok"}
 
 
-@app.post("/v1/jobs", response_model=JobCreateResponse)
-async def create_job(
-    req: JobCreateRequest,
-    background_tasks: BackgroundTasks,
-    x_api_key: Optional[str] = Header(None),
-):
-    """
-    평가 작업 생성
-    
-    패치를 제출하고 백그라운드에서 평가를 시작합니다.
-    """
-    verify_api_key(x_api_key)
-    
-    job = await job_store.create(req)
-    logger.info(f"Created job {job.job_id} for instance {job.instance_id}")
-    
-    # 백그라운드에서 평가 실행
-    background_tasks.add_task(run_job_async, job.job_id)
-    
-    return JobCreateResponse(job_id=job.job_id, status=job.status.value)
-
-
-async def run_job_async(job_id: str):
-    """백그라운드에서 작업 실행"""
-    job = await job_store.get(job_id)
-    if not job:
-        return
-
-    job.status = JobStatus.RUNNING
-    await job_store.update(job)
-    logger.info(f"Starting job {job_id}")
-
-    try:
-        result = await runner.run_evaluation(job)
-        job.report = result
-        job.status = JobStatus.FINISHED
-        logger.info(f"Job {job_id} finished: {result}")
-    except Exception as e:
-        job.status = JobStatus.FAILED
-        job.error = str(e)
-        logger.exception(f"Job {job_id} failed: {e}")
-    finally:
-        job.finished_at = time.time()
-        await job_store.update(job)
-
-
-@app.get("/v1/jobs/{job_id}", response_model=JobStatusResponse)
-async def get_job_status(
-    job_id: str,
-    x_api_key: Optional[str] = Header(None),
-):
-    """작업 상태 조회"""
-    verify_api_key(x_api_key)
-    
-    job = await job_store.get(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    
-    return JobStatusResponse(
-        job_id=job.job_id,
-        status=job.status.value,
-        instance_id=job.instance_id,
+@app.post("/v1/jobs", response_model=JobStatus, dependencies=[Depends(require_api_key)])
+async def create_job(req: JobCreate):
+    job_id = f"job_{int(time.time() * 1000)}"
+    job = InternalJob(job_id=job_id, req=req)
+    JOB_STORE[job_id] = job
+    await JOB_QUEUE.put(job_id)
+    return JobStatus(
+        job_id=job_id,
+        status=job.status,
         created_at=job.created_at,
+        started_at=job.started_at,
+        finished_at=job.finished_at,
+    )
+
+
+@app.get("/v1/jobs/{job_id}", response_model=JobStatus, dependencies=[Depends(require_api_key)])
+async def get_job(job_id: str):
+    job = JOB_STORE.get(job_id)
+    if not job:
+        raise HTTPException(404, "Job not found")
+    return JobStatus(
+        job_id=job.job_id,
+        status=job.status,
+        created_at=job.created_at,
+        started_at=job.started_at,
         finished_at=job.finished_at,
         error=job.error,
+        result=job.result,
     )
 
 
-@app.get("/v1/jobs/{job_id}/report", response_model=JobReportResponse)
-async def get_job_report(
-    job_id: str,
-    x_api_key: Optional[str] = Header(None),
-):
-    """작업 결과 조회"""
-    verify_api_key(x_api_key)
-    
-    job = await job_store.get(job_id)
+@app.get("/v1/jobs/{job_id}/logs", response_class=PlainTextResponse, dependencies=[Depends(require_api_key)])
+async def get_logs(job_id: str):
+    job = JOB_STORE.get(job_id)
     if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    
-    if job.status not in (JobStatus.FINISHED, JobStatus.FAILED):
-        raise HTTPException(status_code=400, detail="Job not finished yet")
-    
-    report = job.report or {}
-    return JobReportResponse(
-        job_id=job.job_id,
-        instance_id=job.instance_id,
-        resolved_ids=report.get("resolved_ids", []),
-        unresolved_ids=report.get("unresolved_ids", []),
-        error_ids=report.get("error_ids", []),
-    )
+        raise HTTPException(404, "Job not found")
+    return "\n".join(job.log_buffer)
 
 
-# ============================================================================
-# Main
-# ============================================================================
+@app.get("/v1/jobs/{job_id}/report", response_class=JSONResponse, dependencies=[Depends(require_api_key)])
+async def get_report(job_id: str):
+    job = JOB_STORE.get(job_id)
+    if not job or not job.result:
+        raise HTTPException(404, "Job not found or not finished")
+    report_path = (job.result or {}).get("report_path")
+    if not report_path:
+        raise HTTPException(404, "Report not available")
+    try:
+        with open(report_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        raise HTTPException(404, "Report file not found on server")
+
+
+@app.get("/v1/summary", response_class=JSONResponse)
+async def summary() -> Dict[str, Any]:
+    # cluster-wide simple summary
+    return {
+        "status": "ok",
+        "workers": int(os.environ.get("SWE_WORKERS", "1")),
+        "jobs": {
+            "queued": sum(1 for j in JOB_STORE.values() if j.status == "queued"),
+            "running": sum(1 for j in JOB_STORE.values() if j.status == "running"),
+            "finished": sum(1 for j in JOB_STORE.values() if j.status == "finished"),
+            "failed": sum(1 for j in JOB_STORE.values() if j.status == "failed"),
+        },
+        "time": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+    }
+
+
 def main():
-    parser = argparse.ArgumentParser(description="SWE-bench Evaluation Server")
-    parser.add_argument("--host", default="0.0.0.0", help="Host to bind")
-    parser.add_argument("--port", type=int, default=8000, help="Port to bind")
-    parser.add_argument("--reload", action="store_true", help="Enable auto-reload")
-    args = parser.parse_args()
-
-    logger.info(f"Starting SWE-bench server on {args.host}:{args.port}")
-    logger.info(f"API Key: {'enabled' if settings.API_KEY else 'disabled'}")
-    logger.info(f"Max concurrent jobs: {settings.MAX_CONCURRENT_JOBS}")
-    logger.info(f"Prebuild images: {settings.PREBUILD_IMAGES}")
-
-    uvicorn.run(
-        app,
-        host=args.host,
-        port=args.port,
-    )
+    import uvicorn
+    port = int(os.environ.get("PORT", "8000"))
+    # Import string経由ではなく、アプリインスタンスを直接渡して起動
+    uvicorn.run(app, host="0.0.0.0", port=port, reload=False)
 
 
 if __name__ == "__main__":
     main()
-

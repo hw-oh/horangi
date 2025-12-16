@@ -49,7 +49,8 @@ google = ["google-genai>=0.1.0"]
 swebench-server = [
     "fastapi>=0.100.0",
     "uvicorn[standard]>=0.23.0",
-    "swebench>=2.0.0,<3.0.0",  # llm-leaderboard 호환 버전
+    "python-dotenv>=1.0.0",
+    "swebench==2.1.6",  # llm-leaderboard 호환 버전 (정확히 고정)
 ]
 
 [project.urls]
