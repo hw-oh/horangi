@@ -15,6 +15,7 @@ from benchmarks.ifeval_ko import CONFIG as ifeval_ko
 from benchmarks.ko_balt_700 import CONFIG as ko_balt_700
 from benchmarks.ko_balt_700_syntax import CONFIG as ko_balt_700_syntax
 from benchmarks.ko_balt_700_semantic import CONFIG as ko_balt_700_semantic
+from benchmarks.haerae_bench_v1 import CONFIG as haerae_bench_v1
 from benchmarks.haerae_bench_v1_rc import CONFIG as haerae_bench_v1_rc
 from benchmarks.haerae_bench_v1_wo_rc import CONFIG as haerae_bench_v1_wo_rc
 from benchmarks.kmmlu import CONFIG as kmmlu
@@ -50,6 +51,7 @@ BENCHMARK_DESCRIPTIONS: dict[str, str] = {
     "ifeval_ko": "지시 따르기 평가",
     "ko_balt_700": "언어 이해 및 추론",
     # 지식
+    "haerae_bench_v1": "HAERAE v1",
     "haerae_bench_v1_rc": "HAERAE v1 (독해 포함)",
     "haerae_bench_v1_wo_rc": "HAERAE v1 (독해 제외)",
     "kmmlu": "한국어 MMLU",
@@ -88,6 +90,7 @@ BENCHMARKS: dict = {
     "ko_balt_700": ko_balt_700,
     "ko_balt_700_syntax": ko_balt_700_syntax,
     "ko_balt_700_semantic": ko_balt_700_semantic,
+    "haerae_bench_v1": haerae_bench_v1,
     "haerae_bench_v1_rc": haerae_bench_v1_rc,
     "haerae_bench_v1_wo_rc": haerae_bench_v1_wo_rc,
     "kmmlu": kmmlu,

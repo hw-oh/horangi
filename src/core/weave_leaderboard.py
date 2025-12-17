@@ -31,18 +31,22 @@ LEADERBOARD_NAME = "Korean LLM Leaderboard"
 LEADERBOARD_DESCRIPTION = """한국어 LLM 벤치마크 모델 성능 비교 리더보드
 
 이 리더보드는 Inspect AI 평가 결과에서 자동으로 생성되었습니다.
-다양한 벤치마크에서 모델들의 성능을 비교해볼 수 있습니다.
+범용언어성능(GLP)과 가치정렬성능(ALT) 두 축으로 모델들의 성능을 비교합니다.
 
-📊 벤치마크 카테고리:
-- 언어 이해: ko_hellaswag, kmmlu, kmmlu_pro, haerae_bench
-- 추론: ko_aime2025, ko_gsm8k, ko_arc_agi
-- 지시 추종: ifeval_ko, ko_balt_700
-- 안전성/윤리: ko_moral, kobbq, korean_hate_speech
-- 환각: ko_hallulens (wikiqa, longwiki, nonexistent)
-- 지식: ko_truthful_qa, ko_hle
-- 도구 사용: bfcl
-- 대화: ko_mtbench
+📊 범용언어성능 (GLP - General Language Performance):
+- 구문/의미해석: ko_balt_700, haerae_bench_v1
+- 일반/전문지식: kmmlu, kmmlu_pro, ko_hle
+- 상식/수학/추상추론: ko_hellaswag, ko_gsm8k, ko_aime2025, ko_arc_agi
+- 정보검색: squad_kor_v1
+- 표현: ko_mtbench
 - 코딩: swebench_verified_official_80
+- 함수호출: bfcl
+
+🛡️ 가치정렬성능 (ALT - Alignment Performance):
+- 제어성: ifeval_ko
+- 윤리/도덕: ko_moral
+- 유해성/편향성 방지: korean_hate_speech, kobbq
+- 환각방지: ko_truthful_qa, ko_hallulens_wikiqa, ko_hallulens_nonexistent
 """
 
 
