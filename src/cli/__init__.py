@@ -351,6 +351,10 @@ def main():
         else:
             inspect_model = model_id
         
+        # Weave 표시용 모델 이름 설정 (inspect-wandb가 사용)
+        # api_provider가 있어도 원래 model_id를 Weave에 표시
+        os.environ["INSPECT_WANDB_MODEL_NAME"] = model_id
+        
         # 이미 --model이 지정되어 있지 않으면 추가
         has_model = any(arg == "--model" for arg in rest_args)
         if not has_model:

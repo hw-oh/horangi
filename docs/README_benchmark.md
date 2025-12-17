@@ -1,4 +1,4 @@
-# Horangi 개발 가이드
+# 벤치마크 추가 가이드
 
 > 새 벤치마크 추가 방법을 설명합니다.
 > 설치, 사용법, 모델 설정은 [루트 README](../README.md)를 참고하세요.
@@ -97,6 +97,8 @@ uv run horangi my_benchmark --model openai/gpt-4o -T limit=5
 | `index_1` | 1-indexed → A/B/C | `1` → `"A"` |
 | `text` | 텍스트 → 인덱스 | `"사과"` → `"A"` |
 | `letter` | 그대로 유지 | `"A"` → `"A"` |
+| `to_string` | 문자열로 변환 | `123` → `"123"` |
+| `boolean` | True/False → A/B | `True` → `"A"` |
 
 ### Solver / Scorer 옵션
 
@@ -104,7 +106,9 @@ uv run horangi my_benchmark --model openai/gpt-4o -T limit=5
 |--------|------|
 | `multiple_choice` | MCQA |
 | `generate` | 자유 생성 |
-| `bfcl_solver` | Tool calling |
+| `bfcl_solver` | Tool calling (Native) |
+| `bfcl_text_solver` | Tool calling (Text-based) |
+| `mtbench_solver` | MT-Bench 멀티턴 대화 |
 | `swebench_patch_solver` | SWE-bench |
 
 | Scorer | 용도 |
@@ -113,6 +117,15 @@ uv run horangi my_benchmark --model openai/gpt-4o -T limit=5
 | `match` | 정확 일치 |
 | `match_numeric` | 숫자 일치 |
 | `model_graded_qa` | LLM 채점 |
+| `hle_grader` | HLE 전용 채점 |
+| `grid_match` | 그리드 일치 (ARC-AGI) |
+| `macro_f1` | Macro F1 |
+| `kobbq_scorer` | KoBBQ 편향성 |
+| `hallulens_qa_scorer` | HalluLens QA |
+| `refusal_scorer` | HalluLens 거부 응답 평가 |
+| `bfcl_scorer` | BFCL 함수호출 |
+| `mtbench_scorer` | MT-Bench 평가 |
+| `swebench_server_scorer` | SWE-bench 서버 채점 |
 
 ---
 
@@ -165,3 +178,4 @@ __all__ = [..., "my_scorer"]
 
 - [Inspect AI Docs](https://inspect.ai-safety-institute.org.uk/)
 - [inspect_evals GitHub](https://github.com/UKGovernmentBEIS/inspect_evals)
+

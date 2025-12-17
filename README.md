@@ -1,15 +1,22 @@
 # 🐯 Horangi - 한국어 LLM 벤치마크 평가 프레임워크
 
-**호랑이(Horangi)**는 한국어 LLM의 성능을 종합적으로 평가하는 오픈소스 벤치마크 프레임워크입니다.
+**호랑이(Horangi)** 는 한국어 LLM의 성능을 종합적으로 평가하는 오픈소스 벤치마크 프레임워크입니다.
 
-[WandB/Weave](https://wandb.ai/site/weave)와 [Inspect AI](https://inspect.ai-safety-institute.org.uk/)를 통합하여 **범용언어성능(GLP)**과 **가치정렬성능(ALT)** 두 축으로 한국어 LLM을 평가하며, 이를 위해 **표준화된 벤치마크 데이터셋**과 **평가 파이프라인**을 제공합니다.
+[WandB/Weave](https://wandb.ai/site/weave)와 [Inspect AI](https://inspect.ai-safety-institute.org.uk/)를 통합하여 범용언어성능(GLP)과 가치정렬성능(ALT) 두 축으로 한국어 LLM을 평가하며, 이를 위해 표준화된 벤치마크 데이터셋과 평가 파이프라인을 제공합니다.
 - 📦 20개 이상의 한국어 벤치마크가 [Weave](https://wandb.ai/horangi/horangi4/weave/objects)에 등록되어 있어, 별도의 데이터 준비 없이 바로 평가를 시작할 수 있습니다.
+  - 새로운 벤치마크를 추가할 수 있습니다. 자세한 내용은 [Horangi benchmark 문서](./docs/README_benchmark.md)를 참고하세요.
 - 🔓 OpenAI, Anthropic, Google 등 API 모델은 물론, vLLM 등으로 서빙하는 오픈소스 모델까지 동일한 기준으로 평가할 수 있습니다.
 - 📊 평가 결과는 Weave에 자동으로 기록되어 샘플별 분석, 모델 간 비교, 리더보드 생성이 가능합니다.
-- 🏆 **[호랑이 리더보드](https://horangi.ai)**에서 W&B가 운영하는 리더보드를 확인할 수 있습니다.
-<div align="center">
+- 🏆 **[호랑이 리더보드](https://horangi.ai)**에서 W&B가 운영하는 공식 리더보드를 확인할 수 있습니다.
+  - W&B Models로 평가 실행을 관리하고, Weave로 결과를 추적하여 **완전 자동화된 리더보드**를 제공합니다.
+  - 새 모델 평가 시 리더보드가 자동으로 업데이트되어 항상 최신 결과를 반영합니다.
 
-</div>
+### 📬 문의
+
+| | |
+|---|---|
+| 리더보드 등재 신청 | [신청 폼](https://docs.google.com/forms/d/e/1FAIpQLSdQERNX8jCEuqzUiodjnUdAI7JRCemy5sgmVylio-u0DRb9Xw/viewform) |
+| 엔터프라이즈 문의 | contact-kr@wandb.com |
 
 ---
 
@@ -37,16 +44,12 @@
 ### 📈 결과 확인
 
 평가 완료 후 출력되는 Weave URL에서 상세 결과를 확인할 수 있습니다:
-
-- 📊 **샘플별 점수 및 응답**
-- 🔍 **모델 간 비교**
-- 📈 **집계 메트릭** (Scores 섹션)
-
-### Weave Leaderboard
-
-여러 모델의 평가 결과를 Weave UI의 **Leaderboard**로 비교할 수 있습니다:
+자세한 내용은 [Horangi Weave 문서](./docs/README_weave.md)를 참고하세요.
+- **샘플별 점수 및 응답**
+- **모델 간 비교**
+- **집계 메트릭**
+- **자동 리더보드 생성**
 ![Weave Leaderboard](./docs/assets/leaderboard.png)
-자세한 내용은 [Weave 통합 가이드](./docs/README_weave.md)를 참고하세요.
 
 ---
 
@@ -232,33 +235,6 @@ uv run python run_eval.py --config gpt-4o --only kmmlu,kobbq
 ```
 
 > **💡 Tip**: `--config`를 사용하면 커스텀 API 엔드포인트(vLLM, Ollama 등)의 설정을 재사용할 수 있어 편리합니다.
-
-### 3. 다양한 모델 사용
-
-#### `--model` 옵션 사용 시
-
-```bash
-# OpenAI
-uv run horangi kmmlu --model openai/gpt-4o
-
-# Anthropic
-uv run horangi kmmlu --model anthropic/claude-opus-4-5-20251101
-
-# Google
-uv run horangi kmmlu --model google/gemini-3-pro
-
-```
-
-#### `--config` 옵션 사용 시
-
-```bash
-# 미리 정의된 설정 파일 사용
-uv run horangi kmmlu --config gpt-4o
-uv run horangi kmmlu --config solar-pro2-251215
-uv run horangi kmmlu --config EXAONE-4.0.1-32B
-```
-
-> 설정 파일 작성 방법은 아래 [⚙️ 설정 가이드](#️-설정-가이드) 섹션을 참고하세요.
 
 ---
 
@@ -475,23 +451,6 @@ export SWE_SERVER_URL=http://YOUR_SERVER:8000
 # 3. 평가 실행
 uv run horangi swebench_verified_official_80 --config gpt-4o -T limit=5
 ```
-
----
-
-
-
-
-
----
-
-
-
-## 📬 문의
-
-| | |
-|---|---|
-| 리더보드 등재 신청 | [신청 폼](https://docs.google.com/forms/d/e/1FAIpQLSdQERNX8jCEuqzUiodjnUdAI7JRCemy5sgmVylio-u0DRb9Xw/viewform) |
-| 일반 문의 | contact-kr@wandb.com |
 
 ---
 
