@@ -461,7 +461,7 @@ Examples:
     wandb_run = wandb.init(
         entity=entity,
         project=project,
-        name=f"model_name",
+        name=model_name,
         job_type="evaluation",
         config={
             "config": args.config,
