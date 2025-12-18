@@ -375,7 +375,7 @@ def parse_scores_from_eval_log(eval_log, benchmark: str) -> dict | None:
                     main_score = value
                     # Normalize mtbench mean
                     if benchmark == "ko_mtbench" and suffix in ["_mean", "mean"]:
-                    main_score = main_score / 10.0
+                        main_score = main_score / 10.0
                     break
             if main_score is not None:
                 break
