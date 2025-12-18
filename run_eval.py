@@ -34,12 +34,12 @@ ALL_BENCHMARKS = [
     "ko_hellaswag",
     "ko_aime2025",
     "ifeval_ko",
-    "ko_balt_700",
-    # "ko_balt_700_syntax",
-    # "ko_balt_700_semantic",
-    "haerae_bench_v1",
-    # "haerae_bench_v1_rc",
-    # "haerae_bench_v1_wo_rc",
+    # ko_balt_700: 구문해석/의미해석 분리 실행
+    "ko_balt_700_syntax",
+    "ko_balt_700_semantic",
+    # haerae_bench_v1: 의미해석(RC)/일반지식(wo_RC) 분리 실행
+    "haerae_bench_v1_rc",
+    "haerae_bench_v1_wo_rc",
     "kmmlu",
     "kmmlu_pro",
     "squad_kor_v1",
@@ -328,31 +328,56 @@ def parse_scores_from_eval_log(eval_log, benchmark: str) -> dict | None:
     if not all_metrics:
         return None
     
-    # Select main score (same logic as before)
+    def find_metric(*suffixes: str) -> float | None:
+        """Find metric by suffix (e.g., '_accuracy', '_avg')"""
+        for suffix in suffixes:
+            for key, value in all_metrics.items():
+                if key.endswith(suffix) or key == suffix:
+                    return value
+        return None
+    
+    # Select main score based on benchmark
     main_score = None
     
     if benchmark == "ifeval_ko":
-        main_score = all_metrics.get("final_acc") or all_metrics.get("prompt_strict_acc")
+        # instruction_following_final_acc or instruction_following_prompt_strict_acc
+        main_score = find_metric("_final_acc", "_prompt_strict_acc")
     elif benchmark == "kobbq":
-        main_score = all_metrics.get("kobbq_avg")
+        # kobbq_scorer_kobbq_avg
+        main_score = find_metric("_kobbq_avg", "kobbq_avg")
     elif benchmark == "ko_hle":
-        main_score = all_metrics.get("hle_accuracy") or all_metrics.get("accuracy")
+        # hle_grader_hle_accuracy
+        main_score = find_metric("_hle_accuracy", "hle_accuracy")
     elif "hallulens" in benchmark:
-        main_score = all_metrics.get("correct_rate") or all_metrics.get("refusal_rate")
+        # hallulens_qa_correct_rate or hallulens_refusal_refusal_rate
+        main_score = find_metric("_correct_rate", "_refusal_rate")
     elif benchmark == "ko_mtbench":
-        if "mean" in all_metrics:
-            main_score = all_metrics["mean"] / 10.0
+        # mtbench_scorer_mean
+        main_score = find_metric("_mean", "mean")
+        if main_score is not None:
+            main_score = main_score / 10.0  # Normalize to 0-1
     elif benchmark == "bfcl":
-        main_score = all_metrics.get("accuracy")
+        # bfcl_scorer_accuracy
+        main_score = find_metric("bfcl_scorer_accuracy", "_accuracy")
     elif benchmark == "squad_kor_v1":
-        main_score = all_metrics.get("mean")
+        # f1_mean
+        main_score = find_metric("f1_mean", "_f1_mean")
+    elif benchmark == "swebench_verified_official_80":
+        # swebench: resolved rate
+        main_score = find_metric("_resolved", "resolved")
     
+    # Fallback: find any accuracy metric
     if main_score is None:
-        for metric in ["accuracy", "mean", "macro_f1", "f1", "resolved"]:
-            if metric in all_metrics:
-                main_score = all_metrics[metric]
-                if metric == "mean" and benchmark == "ko_mtbench":
-                    main_score = main_score / 10.0
+        # Try common metric suffixes
+        for suffix in ["_accuracy", "accuracy", "_mean", "mean", "_f1", "f1", "_resolved", "resolved"]:
+            for key, value in all_metrics.items():
+                if key.endswith(suffix):
+                    main_score = value
+                    # Normalize mtbench mean
+                    if benchmark == "ko_mtbench" and suffix in ["_mean", "mean"]:
+                        main_score = main_score / 10.0
+                    break
+            if main_score is not None:
                 break
     
     return {
@@ -546,6 +571,29 @@ Examples:
                 print(f"\n🏆 Leaderboard URL: {leaderboard_url}")
         except Exception as e:
             print(f"⚠️ Weave Leaderboard creation failed: {e}")
+    
+    # Log W&B Leaderboard Tables (if there are successful benchmarks)
+    if benchmark_scores and wandb_run is not None:
+        try:
+            from core.models_leaderboard import log_leaderboard_tables
+            
+            print(f"\n{'='*60}")
+            print(f"📊 Logging W&B Leaderboard Tables")
+            print(f"{'='*60}")
+            
+            # Get model metadata
+            model_metadata = get_model_metadata(args.config)
+            
+            log_leaderboard_tables(
+                wandb_run=wandb_run,
+                model_name=model_name,
+                benchmark_scores=benchmark_scores,
+                metadata=model_metadata,
+            )
+        except Exception as e:
+            import traceback
+            print(f"⚠️ W&B Leaderboard table creation failed: {e}")
+            traceback.print_exc()
     
     # End W&B run
     if wandb_run is not None:

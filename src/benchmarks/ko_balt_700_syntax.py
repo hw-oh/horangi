@@ -2,13 +2,14 @@
 KoBALT-700 Syntax - Korean MCQA Benchmark
 
 Independent benchmark (no base) - solver/scorer directly specified
+구문해석 능력 평가
 """
 
 from core.benchmark_config import BenchmarkConfig
 
 CONFIG = BenchmarkConfig(
     data_type="weave",
-    data_source="weave:///wandb-korea/evaluation-job/object/KoBALT-700-syntax:UkRzrRi96jX1YIXN0TV065Ssy8IiSkQ9FngkCIR9O7E",
+    data_source="weave:///horangi/horangi4/object/KoBALT_700_Syntax_mini:kG5ypGu9nViQ2JjqIff8sorcxFUyEYvzSShBSI0Pegc",
     field_mapping={
         "id": "id",
         "input": "question",
