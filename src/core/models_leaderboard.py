@@ -281,7 +281,7 @@ def create_leaderboard_table(
         df["FINAL_SCORE"] = None
     
     # 메타데이터 추가
-    df["release_date"] = metadata.get("release_date", "unknown")
+    df["release_date"] = pd.to_datetime(metadata.get("release_date", "unknown"), format="%Y-%m-%d")
     df["size_category"] = metadata.get("size_category", "unknown")
     df["model_size"] = metadata.get("model_size", "unknown")
     

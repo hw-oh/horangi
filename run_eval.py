@@ -461,7 +461,7 @@ Examples:
     wandb_run = wandb.init(
         entity=entity,
         project=project,
-        name=f"eval-{model_name}-{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+        name=f"model_name",
         job_type="evaluation",
         config={
             "config": args.config,
