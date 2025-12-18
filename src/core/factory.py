@@ -282,7 +282,6 @@ def create_benchmark(
     shuffle: bool = False,
     limit: int | None = None,
     split: str | None = None,
-    use_korean_prompt: bool = True,
     use_native_tools: bool | None = None,
     **kwargs,
 ) -> Task:
@@ -297,7 +296,6 @@ def create_benchmark(
         shuffle: Whether to shuffle data
         limit: Sample count limit
         split: Data split
-        use_korean_prompt: Whether to use Korean prompts
         use_native_tools: Whether to use tool calling (used for BFCL, etc.)
                          None uses default (native)
     """
@@ -370,7 +368,8 @@ def create_benchmark(
         solver = original_task.solver
         scorer = original_task.scorer
         
-        if use_korean_prompt and config.get("system_message"):
+        # Always apply system message if configured
+        if config.get("system_message"):
             solver = [system_message(config["system_message"])] + list(solver)
         
         return Task(
@@ -407,7 +406,8 @@ def create_benchmark(
         else:
             solver = get_solver_by_name("multiple_choice")
         
-        if use_korean_prompt and config.get("system_message"):
+        # Always apply system message if configured
+        if config.get("system_message"):
             solver = [system_message(config["system_message"])] + solver
         
         return Task(

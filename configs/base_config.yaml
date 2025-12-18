@@ -1,44 +1,34 @@
 # =============================================================================
-# Horangi 기본 설정
+# Horangi Base Configuration
 # =============================================================================
 
-# 테스트 모드 (true면 소량 샘플로 실행)
+# Test mode (if true, runs with small sample size)
 testmode: false
 
 # =============================================================================
-# 기본값 설정 (모델/벤치마크에서 override 가능)
+# Default Settings (can be overridden by model/benchmark)
 # =============================================================================
 defaults:
-  # 샘플링 기본값
-  limit: null         # 샘플 수 제한 (null = 전체)
-  shuffle: false      # 데이터 셔플 여부
+  # Sampling defaults
+  limit: null         # Sample limit (null = all)
+  shuffle: false      # Data shuffle
   
-  # LLM 기본 설정
-  temperature: 0.0    # 생성 온도
-  max_tokens: 4096    # 최대 토큰 수
-  
-  # 평가 기본 설정
-  use_korean_prompt: true  # 한국어 프롬프트 사용
+  # LLM defaults
+  temperature: 0.0    # Generation temperature
+  max_tokens: 4096    # Maximum tokens
 
 # =============================================================================
-# 벤치마크 공통 설정
+# Benchmark Common Settings
 # =============================================================================
 benchmarks:
-  # Judge 모델 설정 (MT-Bench, HalluLens 등에서 사용)
+  # Judge model settings (used for MT-Bench, HalluLens, etc.)
   judge_model: openai/gpt-4o-mini
   
-  # SWE-bench 설정
+  # SWE-bench settings
   swebench:
-    server_url: null  # SWE-bench 서버 URL (null이면 환경변수 사용)
-    timeout: 300      # 서버 타임아웃 (초)
+    server_url: null  # SWE-bench server URL (null = use environment variable)
+    timeout: 300      # Server timeout (seconds)
   
-  # BFCL 설정
+  # BFCL settings
   bfcl:
-    use_native_tools: true  # 기본값: native tool calling (모델 설정에서 override 가능)
-
-# =============================================================================
-# 로깅 설정
-# =============================================================================
-logging:
-  level: INFO
-  log_dir: logs
+    use_native_tools: true  # Default: native tool calling (can be overridden in model config)

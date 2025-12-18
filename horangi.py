@@ -9,7 +9,6 @@ Usage:
     -T shuffle=true      # Shuffle data
     -T limit=10          # Limit sample count
     -T split=train       # Data split (weave type)
-    -T use_korean_prompt=false  # Use English prompt
 
 Adding new benchmarks:
     1. Create a new file in src/benchmarks/ folder
@@ -41,7 +40,6 @@ def ko_hellaswag(
     shuffle: bool = False,
     limit: int | None = None,
     split: str | None = None,
-    use_korean_prompt: bool = True,
 ) -> Task:
     """KoHellaSwag"""
     return create_benchmark(
@@ -49,7 +47,6 @@ def ko_hellaswag(
         shuffle=shuffle,
         limit=limit,
         split=split,
-        use_korean_prompt=use_korean_prompt,
     )
 
 
@@ -57,14 +54,12 @@ def ko_hellaswag(
 def ko_aime2025(
     shuffle: bool = False,
     limit: int | None = None,
-    use_korean_prompt: bool = True,
 ) -> Task:
     """KoAIME2025"""
     return create_benchmark(
         name="ko_aime2025",
         shuffle=shuffle,
         limit=limit,
-        use_korean_prompt=use_korean_prompt,
     )
 
 
@@ -72,42 +67,36 @@ def ko_aime2025(
 def ko_balt_700(
     shuffle: bool = False,
     limit: int | None = None,
-    use_korean_prompt: bool = True,
 ) -> Task:
     """KoBALT-700"""
     return create_benchmark(
         name="ko_balt_700",
         shuffle=shuffle,
         limit=limit,
-        use_korean_prompt=use_korean_prompt,
     )
 
 @task
 def ko_balt_700_syntax(
     shuffle: bool = False,
     limit: int | None = None,
-    use_korean_prompt: bool = True,
 ) -> Task:
     """KoBALT-700-Syntax"""
     return create_benchmark(
         name="ko_balt_700_syntax",
         shuffle=shuffle,
         limit=limit,
-        use_korean_prompt=use_korean_prompt,
     )
 
 @task
 def ko_balt_700_semantic(
     shuffle: bool = False,
     limit: int | None = None,
-    use_korean_prompt: bool = True,
 ) -> Task:
     """KoBALT-700-Semantic"""
     return create_benchmark(
         name="ko_balt_700_semantic",
         shuffle=shuffle,
         limit=limit,
-        use_korean_prompt=use_korean_prompt,
     )
 
 @task
