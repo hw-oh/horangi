@@ -228,6 +228,8 @@ def get_model_generate_config(config_name: str, benchmark: str) -> dict:
         "max_tokens": "max_tokens",
         "top_p": "top_p",
         "top_k": "top_k",
+        "reasoning_effort": "reasoning_effort",
+        "reasoning_tokens": "reasoning_tokens",
     }
     
     for key, eval_key in key_mapping.items():

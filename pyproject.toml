@@ -33,6 +33,7 @@ dependencies = [
     "openai>=2.8.0",
     "instruction_following_eval @ git+https://github.com/josejg/instruction_following_eval.git",
     "inspect-evals>=0.3.103",
+    "google-genai>=1.55.0",
 ]
 
 [project.scripts]

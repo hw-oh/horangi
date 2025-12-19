@@ -1,0 +1,36 @@
+# =============================================================================
+# Gemini 3 Flash Model Configuration
+# =============================================================================
+
+# Model identifier (passed to inspect eval --model)
+model_id: google/gemini-3-pro-preview
+
+# Model metadata
+metadata:
+  provider: Google
+  name: gemini-3-pro-preview
+  release_date: "2025-11-18"
+  size_category: None
+  model_size: None
+  context_window: 1048576
+  max_output_tokens: 65536
+
+# API settings
+# Google Gemini uses its own endpoint (no base_url needed)
+api_key_env: GOOGLE_API_KEY
+
+# Default parameters (merged with base_config defaults)
+defaults:
+  temperature: 0.3
+  max_tokens: 4096
+  reasoning_effort: high  # Gemini 3: "low" or "high" only (maps to thinkingLevel)
+
+# Benchmark-specific overrides
+benchmarks:
+  # BFCL: Native tool calling supported
+  bfcl:
+    use_native_tools: true
+  
+  # SWE-bench: Requires long context
+  swebench_verified_official_80:
+    max_tokens: 32768
