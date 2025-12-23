@@ -250,25 +250,34 @@ def get_scorer_by_name(scorer_name: str) -> list[Scorer]:
     raise ValueError(f"Unknown scorer: {scorer_name}. Available: {list(builtin_scorers.keys())}")
 
 
-def get_solver_by_name(solver_name: str) -> list[Solver]:
-    """Create Solver instance from solver name"""
+def get_solver_by_name(solver_name: str, solver_args: dict | None = None) -> list[Solver]:
+    """
+    Create Solver instance from solver name
+    
+    Args:
+        solver_name: Name of the solver
+        solver_args: Optional arguments to pass to the solver
+    """
+    solver_args = solver_args or {}
+    
     # Built-in solvers
     from solvers.swebench_patch_solver import swebench_patch_solver
     
     builtin_solvers = {
-        "multiple_choice": lambda: [multiple_choice()],
-        "generate": lambda: [generate()],
+        "multiple_choice": lambda **kw: [multiple_choice()],
+        "generate": lambda **kw: [generate()],
         # SWE-bench solver
-        "swebench_patch_solver": lambda: [swebench_patch_solver()],
+        "swebench_patch_solver": lambda **kw: [swebench_patch_solver(**kw)],
     }
     if solver_name in builtin_solvers:
-        return builtin_solvers[solver_name]()
+        return builtin_solvers[solver_name](**solver_args)
     
     # Custom solvers
     try:
         import solvers as custom_solvers
         if hasattr(custom_solvers, solver_name):
-            return [getattr(custom_solvers, solver_name)()]
+            solver_fn = getattr(custom_solvers, solver_name)
+            return [solver_fn(**solver_args)]
     except ImportError:
         pass
     
@@ -402,11 +411,12 @@ def create_benchmark(
         else:
             scorer = get_scorer_by_name("choice")
         
-        # Solver
+        # Solver (with optional solver_args from config)
+        solver_args = config.get("solver_args", {})
         if config.get("solver"):
-            solver = get_solver_by_name(config["solver"])
+            solver = get_solver_by_name(config["solver"], solver_args)
         else:
-            solver = get_solver_by_name("multiple_choice")
+            solver = get_solver_by_name("multiple_choice", solver_args)
         
         # Always apply system message if configured
         if config.get("system_message"):

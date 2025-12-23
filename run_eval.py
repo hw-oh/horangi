@@ -31,6 +31,7 @@ from core.config_loader import get_config
 
 # All benchmarks list (active ones only)
 ALL_BENCHMARKS = [
+    "swebench_verified_official_80",
     "ko_hellaswag",
     "ko_aime2025",
     "ifeval_ko",
@@ -55,7 +56,6 @@ ALL_BENCHMARKS = [
     "ko_hallulens_nonexistent",
     "bfcl",
     "ko_mtbench",
-    "swebench_verified_official_80",
 ]
 
 # Quick test benchmarks (lightweight ones only)

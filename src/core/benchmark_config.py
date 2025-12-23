@@ -20,6 +20,7 @@ class BenchmarkConfig:
         answer_format: Answer format conversion method ("index_0", "index_1", "letter", "text", "to_string", "identity", "boolean")
         
         solver: Solver name ("multiple_choice", "generate", etc.)
+        solver_args: Arguments to pass to solver (e.g., {"include_hints": False})
         scorer: Scorer name ("choice", "match", "model_graded_qa", etc.)
         system_message: System prompt
         
@@ -43,6 +44,7 @@ class BenchmarkConfig:
     
     # Solver/Scorer
     solver: str = "multiple_choice"
+    solver_args: dict = field(default_factory=dict)  # Arguments to pass to solver
     scorer: str = "choice"
     system_message: Optional[str] = None
     

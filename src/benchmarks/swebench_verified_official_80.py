@@ -10,6 +10,7 @@ CONFIG = BenchmarkConfig(
         "input": "problem_statement",
     },
     solver="swebench_patch_solver",
+    solver_args={"include_hints": False},
     scorer="swebench_server_scorer",
     metadata={
         "benchmark_type": "swebench",

@@ -74,7 +74,12 @@ PATCH_EXAMPLE = '''Here is an example of a patch file. It consists of changes to
      return points
 </patch>
 
-CRITICAL: When generating the patch, you MUST include proper line numbers in the @@ hunk headers. Each hunk header must follow the format @@ -start,count +start,count @@ where start is the line number and count is the number of lines. Do NOT use @@ @@ without line numbers.
+CRITICAL FORMATTING REQUIREMENTS:
+1. You MUST use the EXACT unified diff format shown above. Do NOT use any other format.
+2. Each file must start with "--- a/filepath" and "+++ b/filepath" headers.
+3. Each hunk header MUST follow the format @@ -start,count +start,count @@ where start is the line number and count is the number of lines.
+4. Do NOT use alternative formats like "*** Begin Patch", "*** Update File:", or any other non-standard format.
+5. The patch must be directly applicable using `git apply`.
 '''
 
 
@@ -103,7 +108,7 @@ def _extract_fail_to_pass_info(fail_to_pass: str | list) -> str:
 
 
 @solver
-def swebench_patch_solver() -> Solver:
+def swebench_patch_solver(include_hints: bool = True) -> Solver:
     """
     SWE-bench Patch Solver (Japanese SWE-bench style)
     
@@ -113,6 +118,10 @@ def swebench_patch_solver() -> Solver:
     
     If 'code' field is present in metadata (from Japanese dataset), it will be included
     in the prompt for better accuracy.
+    
+    Args:
+        include_hints: Whether to include hints_text in the prompt. Default: True.
+                      Set to False to exclude hints for harder evaluation.
     """
     async def solve(state: TaskState, generate: Generate) -> TaskState:
         metadata = state.metadata or {}
@@ -162,8 +171,8 @@ def swebench_patch_solver() -> Solver:
                 user_prompt += fail_info
                 user_prompt += "\n</tests_to_fix>\n\n"
 
-        # Hints section (if available)
-        if hints.strip():
+        # Hints section (if available and enabled)
+        if include_hints and hints.strip():
             user_prompt += f"<hints>\n{hints}\n</hints>\n\n"
 
         # Patch example
