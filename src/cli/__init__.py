@@ -352,8 +352,9 @@ def main():
             inspect_model = model_id
         
         # Set model name for Weave display (used by inspect-wandb)
-        # Display original model_id in Weave even if api_provider is set
-        os.environ["INSPECT_WANDB_MODEL_NAME"] = model_id
+        # Use metadata.name if available, otherwise extract model name from model_id
+        model_name_for_weave = model_config.get("metadata", {}).get("name") or (model_id.split("/")[-1] if "/" in model_id else model_id)
+        os.environ["INSPECT_WANDB_MODEL_NAME"] = model_name_for_weave
         
         # Add --model if not already specified
         has_model = any(arg == "--model" for arg in rest_args)

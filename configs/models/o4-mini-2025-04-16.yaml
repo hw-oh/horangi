@@ -1,0 +1,35 @@
+# =============================================================================
+# GPT-4o Model Configuration
+# =============================================================================
+
+# Model identifier (passed to inspect eval --model)
+model_id: openai/o4-mini-2025-04-16
+
+# Model metadata
+metadata:
+  provider: openai
+  name: o4-mini-2025-04-16
+  release_date: "2025-04-16"
+  size_category: None
+  model_size: None
+  context_window: 200000
+  max_output_tokens: 100000
+
+# API settings
+base_url: https://api.openai.com/v1
+api_key_env: OPENAI_API_KEY
+
+# Default parameters (merged with base_config defaults)
+defaults:
+  temperature: 1
+  max_tokens: 100000
+
+# Benchmark-specific overrides
+benchmarks:
+  # BFCL: Native tool calling supported
+  bfcl:
+    use_native_tools: true
+  
+  # SWE-bench: Requires long context
+  swebench_verified_official_80:
+    max_tokens: 100000

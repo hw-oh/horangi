@@ -3,15 +3,17 @@
 # =============================================================================
 
 # Model identifier (passed to inspect eval --model)
-model_id: openai/gpt-4o
+model_id: openai/gpt-5.1-2025-11-13
 
 # Model metadata
 metadata:
-  provider: OpenAI
-  name: gpt-4o
-  release_date: "2024-05-13"
-  context_window: 128000
-  max_output_tokens: 16384
+  provider: openai
+  name: gpt-5.1-2025-11-13
+  release_date: "2025-11-13"
+  size_category: None
+  model_size: None
+  context_window: 400000
+  max_output_tokens: 128000
 
 # API settings
 base_url: https://api.openai.com/v1
@@ -19,8 +21,9 @@ api_key_env: OPENAI_API_KEY
 
 # Default parameters (merged with base_config defaults)
 defaults:
-  temperature: 0.0
-  max_tokens: 4096
+  temperature: 1
+  max_tokens: 128000
+  reasoning_effort: high
 
 # Benchmark-specific overrides
 benchmarks:
@@ -30,4 +33,4 @@ benchmarks:
   
   # SWE-bench: Requires long context
   swebench_verified_official_80:
-    max_tokens: 16384
+    max_tokens: 128000

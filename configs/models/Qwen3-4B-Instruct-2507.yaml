@@ -14,7 +14,7 @@ api_provider: openai
 
 # Model metadata (optional, for documentation and analysis)
 metadata:
-  provider: Alibaba/Qwen
+  provider: qwen
   name: Qwen3-4B-Instruct-2507
   release_date: "2025-07"
   description: "Running on RunPod vLLM server"

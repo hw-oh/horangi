@@ -198,8 +198,9 @@ def get_inspect_model(config_name: str) -> tuple[str, dict, str | None]:
         if api_key:
             model_args["api_key"] = api_key
     
-    # Set INSPECT_WANDB_MODEL_NAME for Weave display
-    os.environ["INSPECT_WANDB_MODEL_NAME"] = model_id
+    # Set INSPECT_WANDB_MODEL_NAME for Weave display (model name only, without provider prefix)
+    model_name_for_weave = model_config.get("metadata", {}).get("name") or (model_id.split("/")[-1] if "/" in model_id else model_id)
+    os.environ["INSPECT_WANDB_MODEL_NAME"] = model_name_for_weave
     
     return inspect_model, model_args, base_url
 
@@ -467,6 +468,7 @@ Examples:
         project=project,
         name=model_name,
         job_type="evaluation",
+        tags=["inspect"],
         config={
             "config": args.config,
             "model": model_id,

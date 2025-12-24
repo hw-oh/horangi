@@ -1,35 +1,28 @@
 # =============================================================================
-# Solar Pro 2 (Upstage)
-# 
-# Example configuration for OpenAI-compatible API
+# GPT-4o Model Configuration
 # =============================================================================
 
-# Model identifier (for display)
-model_id: upstage/solar-pro2-251215
+# Model identifier (passed to inspect eval --model)
+model_id: openai/gpt-4o-2024-11-20
 
-# API Provider: Upstage provides OpenAI-compatible API
-# → Passed to inspect eval as "openai/solar-pro2-251215"
-api_provider: openai
-
-# Model metadata (optional, for documentation and analysis)
+# Model metadata
 metadata:
-  provider: upstage
-  name: solar-pro2-251215
-  release_date: "2025-12-15"
+  provider: openai
+  name: gpt-4o-2024-11-20
+  release_date: "2024-11-20"
   size_category: None
   model_size: None
-  context_window: 65536
+  context_window: 128000
   max_output_tokens: 16384
 
 # API settings
-base_url: https://api.upstage.ai/v1
-api_key_env: UPSTAGE_API_KEY
+base_url: https://api.openai.com/v1
+api_key_env: OPENAI_API_KEY
 
 # Default parameters (merged with base_config defaults)
 defaults:
   temperature: 0.1
   max_tokens: 16384
-  reasoning_effort: high
 
 # Benchmark-specific overrides
 benchmarks:
