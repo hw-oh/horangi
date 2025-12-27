@@ -31,6 +31,8 @@ from core.config_loader import get_config
 
 # All benchmarks list (active ones only)
 ALL_BENCHMARKS = [
+    "kmmlu_pro",
+    "ko_hle",
     "swebench_verified_official_80",
     "ko_hellaswag",
     "ko_aime2025",
@@ -42,7 +44,6 @@ ALL_BENCHMARKS = [
     "haerae_bench_v1_rc",
     "haerae_bench_v1_wo_rc",
     "kmmlu",
-    "kmmlu_pro",
     "squad_kor_v1",
     "ko_truthful_qa",
     "ko_moral",
@@ -50,7 +51,6 @@ ALL_BENCHMARKS = [
     "hrm8k",  # HRM8K: 한국어 수학 추론 (GSM8K, KSM, MATH, MMMLU, OMNI_MATH 통합)
     "korean_hate_speech",
     "kobbq",
-    "ko_hle",
     "ko_hallulens_wikiqa",
     # "ko_hallulens_longwiki",
     "ko_hallulens_nonexistent",
@@ -198,6 +198,13 @@ def get_inspect_model(config_name: str) -> tuple[str, dict, str | None]:
         if api_key:
             model_args["api_key"] = api_key
     
+    # Set client_timeout for OpenAI API calls only (from defaults.timeout in config)
+    # Note: client_timeout is OpenAI-specific, other providers don't support it
+    defaults = model_config.get("defaults", {})
+    provider = model_id.split("/")[0] if "/" in model_id else "openai"
+    if "timeout" in defaults and provider == "openai":
+        model_args["client_timeout"] = float(defaults["timeout"])
+    
     # Set INSPECT_WANDB_MODEL_NAME for Weave display (model name only, without provider prefix)
     model_name_for_weave = model_config.get("metadata", {}).get("name") or (model_id.split("/")[-1] if "/" in model_id else model_id)
     os.environ["INSPECT_WANDB_MODEL_NAME"] = model_name_for_weave
@@ -230,8 +237,11 @@ def get_model_generate_config(config_name: str, benchmark: str) -> dict:
         "max_tokens": "max_tokens",
         "top_p": "top_p",
         "top_k": "top_k",
-        "reasoning_effort": "reasoning_effort",
+        "effort": "effort",  # Anthropic
+        "reasoning_effort": "reasoning_effort",  # OpenAI
         "reasoning_tokens": "reasoning_tokens",
+        "timeout": "timeout",
+        "max_retries": "max_retries",
     }
     
     for key, eval_key in key_mapping.items():
