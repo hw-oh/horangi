@@ -9,8 +9,21 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Load .env file
-load_dotenv(Path(__file__).parent / ".env")
+# Load .env file (override=True ensures .env values take precedence over existing env vars)
+load_dotenv(Path(__file__).parent / ".env", override=True)
+
+# Patch LLM clients EARLY for Weave token tracking (must be before clients are imported)
+try:
+    from weave.integrations.anthropic import anthropic_sdk
+    anthropic_sdk.get_anthropic_patcher().attempt_patch()
+except Exception:
+    pass
+
+try:
+    from weave.integrations.litellm import litellm as weave_litellm
+    weave_litellm.get_litellm_patcher().attempt_patch()
+except Exception:
+    pass
 
 # Set English locale to fix inspect_evals date parsing issue
 try:
@@ -25,9 +38,14 @@ except locale.Error:
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 import wandb
-import weave
 from inspect_ai import eval as inspect_eval
 from core.config_loader import get_config
+
+# Register custom model providers
+try:
+    import providers  # noqa: F401 - registers litellm provider
+except ImportError:
+    pass
 
 # All benchmarks list (active ones only)
 ALL_BENCHMARKS = [
@@ -158,7 +176,7 @@ def get_task_function(benchmark: str):
     raise ValueError(f"Unknown benchmark: {benchmark}")
 
 
-def get_inspect_model(config_name: str) -> tuple[str, dict, str | None]:
+def get_inspect_model(config_name: str, benchmark: str | None = None) -> tuple[str, dict, str | None]:
     """
     Get Inspect AI model string, model_args, and base_url from config
     
@@ -198,12 +216,20 @@ def get_inspect_model(config_name: str) -> tuple[str, dict, str | None]:
         if api_key:
             model_args["api_key"] = api_key
     
-    # Set client_timeout for OpenAI API calls only (from defaults.timeout in config)
-    # Note: client_timeout is OpenAI-specific, other providers don't support it
+    # Set client_timeout for OpenAI API calls only.
+    #
+    # IMPORTANT:
+    # - In Inspect AI, GenerateConfig.timeout controls the retry stop window (tenacity stop_after_delay),
+    #   NOT the OpenAI SDK request timeout.
+    # - Use defaults.client_timeout (or benchmark override client_timeout) to control OpenAI request timeout.
     defaults = model_config.get("defaults", {})
+    benchmark_overrides = (
+        model_config.get("benchmarks", {}).get(benchmark, {}) if benchmark else {}
+    )
     provider = model_id.split("/")[0] if "/" in model_id else "openai"
-    if "timeout" in defaults and provider == "openai":
-        model_args["client_timeout"] = float(defaults["timeout"])
+    client_timeout = benchmark_overrides.get("client_timeout", defaults.get("client_timeout"))
+    if client_timeout is not None and provider == "openai":
+        model_args["client_timeout"] = float(client_timeout)
     
     # Set INSPECT_WANDB_MODEL_NAME for Weave display (model name only, without provider prefix)
     model_name_for_weave = model_config.get("metadata", {}).get("name") or (model_id.split("/")[-1] if "/" in model_id else model_id)
@@ -281,13 +307,17 @@ def run_benchmark(
         task = task_fn(limit=limit) if limit else task_fn()
         
         # Get model info
-        inspect_model, model_args, base_url = get_inspect_model(config_name)
+        inspect_model, model_args, base_url = get_inspect_model(config_name, benchmark)
         
         # Get generation config
         generate_config = get_model_generate_config(config_name, benchmark)
         
         # Run evaluation using inspect_ai.eval()
         # This runs in the same process, so Weave traces are linked to the current W&B run
+        #
+        # fail_on_error=False + continue_on_fail=True:
+        #   샘플 에러(500/RetryError 등)가 나도 전체 eval을 중단하지 않고,
+        #   해당 샘플만 error(=틀림) 처리 후 나머지 샘플 계속 진행
         eval_logs = inspect_eval(
             tasks=[task],
             model=inspect_model,
@@ -295,6 +325,8 @@ def run_benchmark(
             model_base_url=base_url,
             limit=limit,
             log_dir="./logs",
+            fail_on_error=False,
+            continue_on_fail=True,
             **generate_config,
         )
         
@@ -489,9 +521,10 @@ Examples:
     )
     print(f"✅ W&B run started: {wandb_run.url}")
     
-    # Initialize Weave in the same process - this links all Weave traces to the W&B run
-    weave.init(f"{entity}/{project}")
-    print(f"✅ Weave initialized: {entity}/{project}")
+    # Note: Weave is initialized by inspect_wandb hooks automatically
+    # Don't call weave.init() here as it conflicts with the hooks' initialization
+    print(f"✅ Weave will be initialized by inspect_wandb hooks: {entity}/{project}")
+    print("✅ Anthropic client patched for Weave token tracking (early patch)")
     
     
     print(f"\n🐯 Horangi Benchmark Runner")

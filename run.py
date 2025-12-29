@@ -18,11 +18,12 @@ openai_configs = [
 ]
 
 anthropic_configs = [
+    "claude-opus-4-5-20251101_low-effort",
+    "claude-opus-4-5-20251101_high-effort",
     "claude-haiku-4-5-20251001_high-effort",
     "claude-sonnet-4-5-20250929_high-effort",
     "claude-opus-4-20250514_high-effort",
     "claude-opus-4-1-20250805_high-effort",
-    "claude-opus-4-5-20251101_high-effort",
 ]
 
 xai_configs = [

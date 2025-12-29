@@ -1,12 +1,12 @@
-# Claude Opus 4 via LiteLLM
-# Uses Extended Thinking (reasoning_tokens)
+# Claude Opus 4.5 via LiteLLM (Low Effort)
+# Uses reasoning_effort: low (Opus 4.5 only feature)
 
-model_id: litellm/anthropic/claude-opus-4-20250514
+model_id: litellm/anthropic/claude-opus-4-5-20251101
 
 metadata:
   provider: litellm
-  name: claude-opus-4-20250514
-  release_date: "2025-05-14"
+  name: claude-opus-4-5-20251101
+  release_date: "2025-11-01"
   size_category: None
   model_size: None
   context_window: 200000
@@ -17,8 +17,8 @@ api_key_env: ANTHROPIC_API_KEY
 defaults:
   temperature: 1.0
   max_tokens: 64000
-  reasoning_effort: high
-  timeout: 7200
+  reasoning_effort: low  # Opus 4.5 only - auto-mapped to output_config.effort
+  timeout: 3600
   max_retries: 10
 
 benchmarks:

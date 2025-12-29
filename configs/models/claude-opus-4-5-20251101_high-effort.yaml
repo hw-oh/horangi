@@ -1,13 +1,10 @@
-# =============================================================================
-# Claude Opus 4.5 (Anthropic) - High Effort
-# =============================================================================
+# Claude Opus 4.5 via LiteLLM
+# Uses reasoning_effort: high (Opus 4.5 only feature)
 
-# Model identifier (passed to inspect eval --model)
-model_id: anthropic/claude-opus-4-5-20251101
+model_id: litellm/anthropic/claude-opus-4-5-20251101
 
-# Model metadata
 metadata:
-  provider: anthropic
+  provider: litellm
   name: claude-opus-4-5-20251101
   release_date: "2025-11-01"
   size_category: None
@@ -15,25 +12,19 @@ metadata:
   context_window: 200000
   max_output_tokens: 64000
 
-# API settings
 api_key_env: ANTHROPIC_API_KEY
 
-# Default parameters
 defaults:
   temperature: 1.0
   max_tokens: 64000
-  effort: high  # Claude 4.5 Opus only (inspect_ai beta: effort-2025-11-24)
+  reasoning_effort: high
   timeout: 7200
   max_retries: 10
 
-# Benchmark-specific overrides
 benchmarks:
-  # BFCL: Native tool calling supported
   bfcl:
     use_native_tools: true
     max_tokens: 32000
-  
-  # SWE-bench: Requires long context
   swebench_verified_official_80:
     max_tokens: 64000
 

@@ -24,6 +24,8 @@ defaults:
   temperature: 1
   max_tokens: 128000
   reasoning_effort: xhigh
+  # OpenAI SDK request timeout (seconds). Distinct from Inspect's retry timeout.
+  client_timeout: 600
   timeout: 7200
   max_retries: 10  # InternalServerError 등 재시도 횟수
 
