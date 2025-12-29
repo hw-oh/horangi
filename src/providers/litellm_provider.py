@@ -89,8 +89,15 @@ class LiteLLMAPI(ModelAPI):
         else:
             self._litellm_model = model_name
         
-        # Set up LiteLLM configuration
+        # Set up LiteLLM configuration to avoid event loop issues
         litellm.set_verbose = False
+        litellm.suppress_debug_info = True
+        litellm.drop_params = True  # Drop unsupported params instead of error
+        
+        # Disable async logging to prevent "bound to different event loop" error
+        litellm.disable_logging = True
+        litellm.success_callback = []
+        litellm.failure_callback = []
         
     async def generate(
         self,
@@ -110,15 +117,24 @@ class LiteLLMAPI(ModelAPI):
             "messages": messages,
         }
         
-        # Add generation config
-        if config.max_tokens is not None:
-            params["max_tokens"] = config.max_tokens
-        if config.temperature is not None:
-            params["temperature"] = config.temperature
-        if config.top_p is not None:
-            params["top_p"] = config.top_p
-        if config.stop_seqs is not None:
-            params["stop"] = config.stop_seqs
+        # Pass all non-None config attributes directly to LiteLLM
+        # Config should use LiteLLM parameter names directly (e.g., max_tokens, temperature)
+        for attr in dir(config):
+            if attr.startswith('_'):
+                continue
+            value = getattr(config, attr, None)
+            if value is not None and not callable(value):
+                # Special case: reasoning_tokens -> thinking (Extended Thinking)
+                if attr == "reasoning_tokens":
+                    params["thinking"] = {
+                        "type": "enabled",
+                        "budget_tokens": value
+                    }
+                # Special case: stop_seqs -> stop
+                elif attr == "stop_seqs":
+                    params["stop"] = value
+                else:
+                    params[attr] = value
         
         # Add tools if provided
         if tools:
@@ -126,33 +142,10 @@ class LiteLLMAPI(ModelAPI):
             if tool_choice != "auto":
                 params["tool_choice"] = self._convert_tool_choice(tool_choice)
         
-        # Add LiteLLM-specific parameters from config
-        # Reference: https://docs.litellm.ai/docs/providers/anthropic
-        
-        # 1. reasoning_effort - LiteLLM auto-maps to output_config.effort for Claude Opus 4.5
-        if hasattr(config, 'reasoning_effort') and config.reasoning_effort is not None:
-            params["reasoning_effort"] = config.reasoning_effort
-        
-        # 2. effort parameter (Claude Opus 4.5) - also try direct effort
-        if hasattr(config, 'effort') and config.effort is not None:
-            params["reasoning_effort"] = config.effort
-        
-        # 3. reasoning_tokens -> thinking (Extended Thinking for Sonnet 4.5, etc.)
-        if hasattr(config, 'reasoning_tokens') and config.reasoning_tokens is not None:
-            params["thinking"] = {
-                "type": "enabled",
-                "budget_tokens": config.reasoning_tokens
-            }
-        
-        # 4. Support model_args overrides
-        if "thinking" in self._model_args:
-            params["thinking"] = self._model_args["thinking"]
-        if "budget_tokens" in self._model_args:
-            if "thinking" not in params:
-                params["thinking"] = {"type": "enabled"}
-            params["thinking"]["budget_tokens"] = self._model_args["budget_tokens"]
-        if "reasoning_effort" in self._model_args:
-            params["reasoning_effort"] = self._model_args["reasoning_effort"]
+        # Pass through any additional model_args as **kwargs
+        for key, value in self._model_args.items():
+            if value is not None:
+                params[key] = value
         
         # Make the API call
         response = await acompletion(**params)
