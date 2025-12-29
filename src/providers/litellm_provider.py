@@ -118,23 +118,30 @@ class LiteLLMAPI(ModelAPI):
         }
         
         # Pass all non-None config attributes directly to LiteLLM
-        # Config should use LiteLLM parameter names directly (e.g., max_tokens, temperature)
-        for attr in dir(config):
-            if attr.startswith('_'):
+        # Use model_dump() for Pydantic models to get actual values (not FieldInfo)
+        try:
+            config_dict = config.model_dump(exclude_none=True)
+        except AttributeError:
+            # Fallback for non-Pydantic objects
+            config_dict = {k: v for k, v in vars(config).items() if v is not None and not k.startswith('_')}
+        
+        for attr, value in config_dict.items():
+            if callable(value):
                 continue
-            value = getattr(config, attr, None)
-            if value is not None and not callable(value):
-                # Special case: reasoning_tokens -> thinking (Extended Thinking)
-                if attr == "reasoning_tokens":
-                    params["thinking"] = {
-                        "type": "enabled",
-                        "budget_tokens": value
-                    }
-                # Special case: stop_seqs -> stop
-                elif attr == "stop_seqs":
-                    params["stop"] = value
-                else:
-                    params[attr] = value
+            # Special case: reasoning_tokens -> thinking (Extended Thinking)
+            if attr == "reasoning_tokens":
+                params["thinking"] = {
+                    "type": "enabled",
+                    "budget_tokens": value
+                }
+            # Special case: stop_seqs -> stop
+            elif attr == "stop_seqs":
+                params["stop"] = value
+            # Skip internal/unsupported params
+            elif attr in ("cache", "internal_tools", "max_tool_output"):
+                continue
+            else:
+                params[attr] = value
         
         # Add tools if provided
         if tools:
