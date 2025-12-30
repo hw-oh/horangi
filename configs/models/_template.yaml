@@ -1,58 +1,65 @@
 # =============================================================================
-# Model Configuration Template
+# Model Configuration Template (v2)
 # 
 # Copy this file when adding a new model.
-# Filename: <model-name>.yaml (e.g., gpt-4o.yaml, llama-3.yaml)
+# Filename: <model-name>.yaml (e.g., gpt-4o.yaml, claude-opus-4-5.yaml)
 # =============================================================================
 
-# Model identifier
-# Format: provider/model-name (e.g., openai/gpt-4o, upstage/solar-pro2)
-model_id: provider/model-name
+# W&B Settings
+wandb:
+  run_name: "model-name: effort-level"   # Display name for W&B run
 
-# API Provider (optional)
-# For OpenAI-compatible APIs (vLLM, Upstage, etc.), set to "openai"
-# This prepends "openai/" to the model name for inspect eval
-# api_provider: openai
-
-# Model metadata (optional, for documentation and analysis)
+# Model Metadata
 metadata:
-  provider: Provider Name       # Provider (OpenAI, Anthropic, Upstage, etc.)
-  name: Model Display Name      # Display name
-  release_date: "YYYY-MM-DD"    # Release date
-  size_category: None           # Size category ("Small (<10B)", "Medium (10-30B)", "Large (30B<)")
-  model_size: None
-  description: "Model description"
-  context_window: 128000        # Context window size (tokens)
-  max_output_tokens: 4096       # Maximum output tokens
+  release_date: "YYYY-MM-DD"              # Model release date
+  size_category: null                     # "Small (<10B)", "Medium (10-30B)", "Large (30B<)"
+  model_size: null                        # e.g., "4B", "32B", "70B"
+  context_window: 128000                  # Context window size (tokens)
+  max_output_tokens: 4096                 # Maximum output tokens
 
 # =============================================================================
-# API Settings
+# Model Configuration
 # =============================================================================
 
-# Custom API URL (for OpenAI-compatible APIs)
-# Examples:
-#   - vLLM server: http://YOUR_SERVER_IP:8000/v1
-#   - Upstage: https://api.upstage.ai/v1
-#   - RunPod: https://xxx.proxy.runpod.net/v1
-# base_url: https://api.example.com/v1
+model:
+  # Model name (without client prefix)
+  # Examples:
+  #   - claude-opus-4-5-20251101
+  #   - gpt-5.2-2025-12-11
+  #   - solar-pro2-251215
+  #   - Qwen/Qwen3-4B-Instruct-2507 (for HuggingFace models)
+  name: model-name
 
-# Environment variable name for API key
-# The CLI will read the API key from this environment variable
-api_key_env: YOUR_API_KEY_ENV
+  # API Client: litellm | openai
+  #   - litellm: Uses LiteLLM (supports Anthropic, OpenAI, xAI, etc.)
+  #   - openai: Uses OpenAI SDK (for OpenAI or OpenAI-compatible APIs)
+  client: litellm
 
-# =============================================================================
-# Default Parameters
-# =============================================================================
-# These values override base_config.yaml defaults
+  # Model Provider (for LiteLLM routing)
+  # Examples: anthropic, openai, xai, google, qwen, lgai, upstage
+  provider: anthropic
 
-defaults:
-  temperature: 0.0    # Generation temperature (0.0 = deterministic)
-  max_tokens: 4096    # Maximum generation tokens
+  # Custom API URL (for OpenAI-compatible APIs)
+  # Examples:
+  #   - vLLM server: http://YOUR_SERVER_IP:8000/v1
+  #   - Upstage: https://api.upstage.ai/v1
+  #   - Google: https://generativelanguage.googleapis.com/v1beta/openai/
+  # base_url: https://api.example.com/v1
+
+  # Environment variable name for API key
+  api_key_env: YOUR_API_KEY_ENV
+
+  # Generation Parameters
+  params:
+    max_tokens: 4096                      # Maximum generation tokens
+    temperature: 0.0                      # Generation temperature
+    # reasoning_effort: high              # For reasoning models (high/low/xhigh)
+    # timeout: 3600                       # Request timeout (seconds)
+    # max_retries: 10                     # Retry count on errors
 
 # =============================================================================
 # Benchmark-specific Overrides (optional)
 # =============================================================================
-# Use different settings for specific benchmarks
 
 benchmarks:
   # BFCL: Function Calling benchmark
@@ -68,3 +75,29 @@ benchmarks:
   # SWE-bench: May need longer output
   # swebench_verified_official_80:
   #   max_tokens: 16384
+
+# =============================================================================
+# Examples by Model Type
+# =============================================================================
+#
+# 1. LiteLLM (Claude, Grok, etc.):
+#    model:
+#      name: claude-opus-4-5-20251101
+#      client: litellm
+#      provider: anthropic
+#      api_key_env: ANTHROPIC_API_KEY
+#
+# 2. Direct OpenAI (GPT, o-series):
+#    model:
+#      name: gpt-5.2-2025-12-11
+#      client: openai
+#      provider: openai
+#      api_key_env: OPENAI_API_KEY
+#
+# 3. OpenAI-Compatible API (Upstage, vLLM, Google, etc.):
+#    model:
+#      name: solar-pro2-251215
+#      client: openai
+#      provider: upstage
+#      base_url: https://api.upstage.ai/v1
+#      api_key_env: UPSTAGE_API_KEY

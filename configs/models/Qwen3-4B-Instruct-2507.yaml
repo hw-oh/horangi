@@ -1,41 +1,28 @@
-# =============================================================================
-# Qwen3-4B-Instruct (RunPod vLLM)
-# 
-# Example configuration for serving open-source models via vLLM
-# =============================================================================
+# Qwen3-4B-Instruct (vLLM, OpenAI-Compatible)
 
-# Model identifier (for display)
-# vLLM uses the full HuggingFace path as model name
-model_id: Qwen/Qwen3-4B-Instruct-2507
+wandb:
+  run_name: "Qwen3-4B-Instruct-2507"
 
-# API Provider: vLLM provides OpenAI-compatible API, so set to "openai"
-# → Passed to inspect eval as "openai/Qwen/Qwen3-4B-Instruct-2507"
-api_provider: openai
-
-# Model metadata (optional, for documentation and analysis)
 metadata:
-  provider: qwen
-  name: Qwen3-4B-Instruct-2507
-  release_date: "2025-07"
-  description: "Running on RunPod vLLM server"
+  release_date: "2025-07-01"
+  size_category: "Small (<10B)"
+  model_size: 4000000000
   context_window: 32768
   max_output_tokens: 4096
 
-# API settings
-base_url: https://lgeyzkj4kubj2u-8000.proxy.runpod.net/v1
-api_key_env: RUNPOD_API_KEY
+model:
+  name: Qwen/Qwen3-4B-Instruct-2507
+  client: openai
+  provider: qwen
+  base_url: https://lgeyzkj4kubj2u-8000.proxy.runpod.net/v1
+  api_key_env: RUNPOD_API_KEY
 
-# Default parameters (merged with base_config defaults)
-defaults:
-  temperature: 0.0
-  max_tokens: 4096
+  params:
+    max_tokens: 4096
+    temperature: 0.0
 
-# Benchmark-specific overrides
 benchmarks:
-  # BFCL: Text-based recommended for open-source models
   bfcl:
     use_native_tools: false
-  
-  # MT-Bench: Higher temperature for creative responses
   ko_mtbench:
     temperature: 0.7

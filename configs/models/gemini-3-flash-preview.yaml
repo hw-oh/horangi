@@ -1,39 +1,28 @@
-# =============================================================================
-# Gemini 3 Pro (OpenAI-Compatible Endpoint) - 테스트용
-# =============================================================================
-# Google의 OpenAI-compatible API를 사용하여 Weave에서 Chat 형식으로 표시
-# 참고: https://ai.google.dev/gemini-api/docs/openai
+# Gemini 3 Flash Preview (OpenAI-Compatible)
 
-# Model identifier - OpenAI provider로 설정
-model_id: openai/gemini-3-flash-preview
+wandb:
+  run_name: "gemini-3-flash-preview"
 
-# Model metadata
 metadata:
-  provider: google
-  name: gemini-3-flash-preview
   release_date: "2025-12-17"
-  size_category: None
-  model_size: None
+  size_category: null
+  model_size: null
   context_window: 1048576
   max_output_tokens: 65536
 
-# API settings - Google의 OpenAI-compatible endpoint 사용
-base_url: https://generativelanguage.googleapis.com/v1beta/openai/
-api_key_env: GOOGLE_API_KEY
+model:
+  name: gemini-3-flash-preview
+  client: openai
+  provider: google
+  base_url: https://generativelanguage.googleapis.com/v1beta/openai/
+  api_key_env: GOOGLE_API_KEY
 
-# Default parameters
-defaults:
-  temperature: 0.3
-  max_tokens: 65536
-  # reasoning_effort: high
+  params:
+    max_tokens: 65536
+    temperature: 0.3
 
-# Benchmark-specific overrides
 benchmarks:
-  # BFCL: Native tool calling supported
   bfcl:
     use_native_tools: true
-  
-  # SWE-bench: Requires long context
   swebench_verified_official_80:
     max_tokens: 65536
-

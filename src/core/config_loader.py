@@ -3,6 +3,35 @@ Configuration Loader
 
 Loads and integrates base_config.yaml + models/<model_name>.yaml configurations.
 
+New Config Structure (v2):
+    wandb:
+      run_name: "model-name: effort"
+    
+    metadata:
+      size_category: null
+      model_size: null
+      context_window: 200000
+      max_output_tokens: 64000
+    
+    model:
+      name: claude-opus-4-5-20251101
+      client: litellm | openai
+      provider: anthropic | openai | xai | qwen | lgai | upstage | google
+      base_url: null  # for OpenAI-compatible APIs
+      api_key_env: ANTHROPIC_API_KEY
+      
+      params:
+        max_tokens: 64000
+        temperature: 1.0
+        reasoning_effort: high
+        timeout: 7200
+        max_retries: 10
+    
+    benchmarks:
+      bfcl:
+        use_native_tools: true
+        max_tokens: 32000
+
 Usage:
     from core.config_loader import ConfigLoader
     
@@ -172,62 +201,202 @@ class ConfigLoader:
             model_config = self.get_model(model_name)
             config["model"] = model_config
             
-            # Merge model config defaults with base defaults
-            if "defaults" in model_config:
+            # Merge model.params with base defaults (for new structure)
+            model_params = model_config.get("model", {}).get("params", {})
+            if model_params:
                 config["defaults"] = _deep_merge(
                     config.get("defaults", {}),
-                    model_config["defaults"]
+                    model_params
                 )
         
         return config
     
-    def get_model_api_base(self, model_name: str) -> Optional[str]:
-        """Return model's API base URL"""
-        model_config = self.get_model(model_name)
-        return model_config.get("api_base") or model_config.get("base_url")
+    # =========================================================================
+    # New Config Structure Helpers (v2)
+    # =========================================================================
     
-    def get_model_api_key_env(self, model_name: str) -> Optional[str]:
-        """Return model's API key environment variable name"""
-        model_config = self.get_model(model_name)
-        return model_config.get("api_key_env")
+    def get_model_name(self, config_name: str) -> str:
+        """
+        Get model name from config
+        
+        New structure: model.name
+        
+        Returns:
+            Model name (e.g., "claude-opus-4-5-20251101", "gpt-5.2-2025-12-11")
+        """
+        model_config = self.get_model(config_name)
+        model_section = model_config.get("model", {})
+        return model_section.get("name", config_name)
     
-    def get_model_api_key(self, model_name: str) -> Optional[str]:
-        """Return model's API key (read from environment variable)"""
-        env_name = self.get_model_api_key_env(model_name)
+    def get_model_client(self, config_name: str) -> str:
+        """
+        Get API client type
+        
+        New structure: model.client
+        
+        Returns:
+            "litellm" or "openai"
+        """
+        model_config = self.get_model(config_name)
+        model_section = model_config.get("model", {})
+        return model_section.get("client", "openai")
+    
+    def get_model_provider(self, config_name: str) -> Optional[str]:
+        """
+        Get model provider (for LiteLLM routing)
+        
+        New structure: model.provider
+        
+        Returns:
+            Provider name (e.g., "anthropic", "openai", "xai", "qwen")
+        """
+        model_config = self.get_model(config_name)
+        model_section = model_config.get("model", {})
+        return model_section.get("provider")
+    
+    def get_model_base_url(self, config_name: str) -> Optional[str]:
+        """
+        Get custom API base URL
+        
+        New structure: model.base_url
+        
+        Returns:
+            Base URL for OpenAI-compatible APIs, or None
+        """
+        model_config = self.get_model(config_name)
+        model_section = model_config.get("model", {})
+        return model_section.get("base_url")
+    
+    def get_model_api_key_env(self, config_name: str) -> Optional[str]:
+        """
+        Get API key environment variable name
+        
+        New structure: model.api_key_env
+        
+        Returns:
+            Environment variable name (e.g., "ANTHROPIC_API_KEY")
+        """
+        model_config = self.get_model(config_name)
+        model_section = model_config.get("model", {})
+        return model_section.get("api_key_env")
+    
+    def get_model_api_key(self, config_name: str) -> Optional[str]:
+        """
+        Get API key value from environment
+        
+        Returns:
+            API key value
+        """
+        env_name = self.get_model_api_key_env(config_name)
         if env_name:
             return os.environ.get(env_name)
         return None
     
-    def get_inspect_model_args(self, model_name: str) -> dict:
+    def get_model_params(self, config_name: str) -> dict:
+        """
+        Get model generation parameters
+        
+        New structure: model.params
+        
+        Returns:
+            Parameters dict (temperature, max_tokens, etc.)
+        """
+        model_config = self.get_model(config_name)
+        model_section = model_config.get("model", {})
+        return model_section.get("params", {})
+    
+    def get_wandb_run_name(self, config_name: str) -> Optional[str]:
+        """
+        Get W&B run name
+        
+        New structure: wandb.run_name
+        
+        Returns:
+            Run name for W&B, or None
+        """
+        model_config = self.get_model(config_name)
+        wandb_section = model_config.get("wandb", {})
+        return wandb_section.get("run_name")
+    
+    def get_metadata(self, config_name: str) -> dict:
+        """
+        Get model metadata
+        
+        New structure: metadata
+        
+        Returns:
+            Metadata dict (context_window, max_output_tokens, etc.)
+        """
+        model_config = self.get_model(config_name)
+        return model_config.get("metadata", {})
+    
+    def get_benchmark_config(self, config_name: str, benchmark: str) -> dict:
+        """
+        Get benchmark-specific configuration
+        
+        New structure: benchmarks.<benchmark_name>
+        
+        Returns:
+            Benchmark config dict (use_native_tools, max_tokens, etc.)
+        """
+        model_config = self.get_model(config_name)
+        return model_config.get("benchmarks", {}).get(benchmark, {})
+    
+    def get_inspect_model_string(self, config_name: str) -> str:
+        """
+        Build Inspect AI model string
+        
+        Logic:
+            - client=litellm: "litellm/{provider}/{name}"
+            - client=openai: "openai/{name}"
+        
+        Returns:
+            Model string for Inspect AI (e.g., "litellm/anthropic/claude-opus-4-5-20251101")
+        """
+        client = self.get_model_client(config_name)
+        name = self.get_model_name(config_name)
+        provider = self.get_model_provider(config_name)
+        
+        if client == "litellm":
+            if provider:
+                return f"litellm/{provider}/{name}"
+            else:
+                return f"litellm/{name}"
+        else:  # openai
+            return f"openai/{name}"
+    
+    def get_inspect_model_args(self, config_name: str, benchmark: Optional[str] = None) -> dict:
         """
         Return arguments needed for Inspect AI model creation
         
         Returns:
             {
-                "model": "openai/gpt-4o",
-                "model_base_url": "https://...",
-                ...
+                "model": "litellm/anthropic/claude-opus-4-5-20251101",
+                "api_key": "...",  # if needed
+                "client_timeout": 600,  # if specified
             }
         """
-        model_config = self.get_model(model_name)
+        model_config = self.get_model(config_name)
+        model_section = model_config.get("model", {})
         
         args = {}
         
-        # Model ID (provider/model format)
-        if "model_id" in model_config:
-            args["model"] = model_config["model_id"]
-        else:
-            args["model"] = model_name
+        # API key (only for non-standard providers)
+        api_key_env = model_section.get("api_key_env")
+        if api_key_env and api_key_env != "OPENAI_API_KEY":
+            api_key = os.environ.get(api_key_env)
+            if api_key:
+                args["api_key"] = api_key
         
-        # Base URL
-        base_url = self.get_model_api_base(model_name)
-        if base_url:
-            args["model_base_url"] = base_url
+        # Client timeout (for OpenAI provider)
+        params = model_section.get("params", {})
+        benchmark_overrides = model_config.get("benchmarks", {}).get(benchmark, {}) if benchmark else {}
         
-        # Additional settings
-        for key in ["temperature", "max_tokens", "top_p"]:
-            if key in model_config:
-                args[key] = model_config[key]
+        client_timeout = benchmark_overrides.get("client_timeout", params.get("client_timeout"))
+        if client_timeout is not None:
+            client = model_section.get("client", "openai")
+            if client == "openai":
+                args["client_timeout"] = float(client_timeout)
         
         return args
 

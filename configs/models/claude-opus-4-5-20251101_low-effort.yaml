@@ -1,25 +1,27 @@
-# Claude Opus 4.5 via LiteLLM (Low Effort)
-# Uses reasoning_effort: low (Opus 4.5 only feature)
+# Claude Opus 4.5 (Low Effort)
 
-model_id: litellm/anthropic/claude-opus-4-5-20251101
+wandb:
+  run_name: "claude-opus-4-5-20251101: low-effort"
 
 metadata:
-  provider: litellm
-  name: claude-opus-4-5-20251101
   release_date: "2025-11-01"
-  size_category: None
-  model_size: None
+  size_category: null
+  model_size: null
   context_window: 200000
   max_output_tokens: 64000
 
-api_key_env: ANTHROPIC_API_KEY
+model:
+  name: claude-opus-4-5-20251101
+  client: litellm
+  provider: anthropic
+  api_key_env: ANTHROPIC_API_KEY
 
-defaults:
-  temperature: 1.0
-  max_tokens: 64000
-  reasoning_effort: low  # Opus 4.5 only - auto-mapped to output_config.effort
-  timeout: 3600
-  max_retries: 10
+  params:
+    max_tokens: 64000
+    temperature: 1.0
+    reasoning_effort: low
+    timeout: 3600
+    max_retries: 10
 
 benchmarks:
   bfcl:
@@ -27,4 +29,3 @@ benchmarks:
     max_tokens: 32000
   swebench_verified_official_80:
     max_tokens: 64000
-

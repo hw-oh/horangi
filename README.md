@@ -248,7 +248,43 @@ configs/
 └── models/               # Per-model settings
     ├── _template.yaml    # Template
     ├── gpt-4o.yaml
-    └── solar_pro2.yaml
+    └── solar-pro2-251215.yaml
+```
+
+### Model Configuration Format
+
+```yaml
+# configs/models/my-model.yaml
+
+wandb:
+  run_name: "my-model: high-effort"    # W&B run display name
+
+metadata:
+  release_date: "2025-01-01"           # Model release date
+  size_category: null                  # "Small (<10B)", "Medium (10-30B)", "Large (30B<)"
+  model_size: null                     # e.g., "4B", "32B", "70B"
+  context_window: 128000
+  max_output_tokens: 4096
+
+model:
+  name: my-model-name                  # Model name
+  client: litellm                      # litellm | openai
+  provider: openai                     # anthropic, openai, xai, google, etc.
+  # base_url: https://...              # For OpenAI-compatible APIs
+  api_key_env: OPENAI_API_KEY
+
+  params:
+    max_tokens: 4096
+    temperature: 0.0
+    # reasoning_effort: high           # For reasoning models
+    # timeout: 3600
+    # max_retries: 10
+
+benchmarks:
+  bfcl:
+    use_native_tools: true
+  swebench_verified_official_80:
+    max_tokens: 16384
 ```
 
 ### Adding a New Model
@@ -269,7 +305,7 @@ uv run horangi kmmlu --config my-model -T limit=5
 | Method | When to Use | Example |
 |------|----------|------|
 | `--model` | Simple execution, one-time tests | `--model openai/gpt-4o` |
-| `--config` | Repeated use, OpenAI-compatible API, per-benchmark settings | `--config solar_pro2` |
+| `--config` | Repeated use, OpenAI-compatible API, per-benchmark settings | `--config solar-pro2-251215` |
 
 ---
 
@@ -297,25 +333,33 @@ vllm serve LGAI-EXAONE/EXAONE-4.0.1-32B\
 
 ```yaml
 # configs/models/EXAONE-4.0.1-32B.yaml
-model_id: LGAI-EXAONE/EXAONE-4.0.1-32B
-api_provider: openai
+
+wandb:
+  run_name: "EXAONE-4.0.1-32B"
 
 metadata:
-  provider: LG AI Research
-  name: EXAONE-4.0.1-32B
-  description: "Running on vLLM server"
+  release_date: "2025-07-29"
+  size_category: "Large (30B<)"
+  model_size: 32000000000
+  context_window: 32768
+  max_output_tokens: 4096
 
-# vLLM server URL
-base_url: http://YOUR_SERVER_IP:8000/v1
-api_key_env: VLLM_API_KEY  # vLLM default doesn't require API key
+model:
+  name: LGAI-EXAONE/EXAONE-4.0.1-32B   # HuggingFace model path
+  client: openai                        # vLLM provides OpenAI-compatible API
+  provider: lgai                        # Model provider (for metadata)
+  base_url: http://YOUR_SERVER_IP:8000/v1
+  api_key_env: VLLM_API_KEY
 
-defaults:
-  temperature: 0.0
-  max_tokens: 4096
+  params:
+    max_tokens: 4096
+    temperature: 0.0
 
 benchmarks:
   bfcl:
-    use_native_tools: false  # Text-based recommended for open-source models
+    use_native_tools: false             # Text-based recommended for open-source models
+  ko_mtbench:
+    temperature: 0.7
 ```
 
 ### 3. Run Benchmarks

@@ -91,7 +91,7 @@ def get_model_env(config_name: str) -> dict[str, str]:
     """
     Generate API environment variables from model config file
     
-    From configs/models/<config_name>.yaml:
+    From new config structure (model.base_url, model.api_key_env):
     - base_url → OPENAI_BASE_URL (or provider-specific environment variable)
     - api_key_env → Read API key from that environment variable
     
@@ -99,34 +99,30 @@ def get_model_env(config_name: str) -> dict[str, str]:
         Environment variable dictionary
     """
     config = get_config()
-    model_config = config.get_model(config_name)
-    
-    if not model_config:
-        return {}
     
     env = {}
     
-    # Check provider (based on model_id: openai/solar-pro2 → openai)
-    model_id = model_config.get("model_id") or config_name
-    provider = model_id.split("/")[0] if "/" in model_id else "openai"
+    # Get client type and provider
+    client = config.get_model_client(config_name)
+    provider = config.get_model_provider(config_name) or "openai"
     provider_upper = provider.upper()
     
     # Set base URL
-    base_url = model_config.get("base_url") or model_config.get("api_base")
+    base_url = config.get_model_base_url(config_name)
     if base_url:
         # OpenAI-compatible APIs use OPENAI_BASE_URL
-        if provider in ["openai", "together", "groq", "fireworks"]:
+        if client == "openai" or provider in ["openai", "together", "groq", "fireworks"]:
             env["OPENAI_BASE_URL"] = base_url
         else:
             env[f"{provider_upper}_BASE_URL"] = base_url
     
     # Set API key
-    api_key_env = model_config.get("api_key_env")
+    api_key_env = config.get_model_api_key_env(config_name)
     if api_key_env:
         api_key = os.environ.get(api_key_env)
         if api_key:
             # OpenAI-compatible APIs
-            if provider in ["openai", "together", "groq", "fireworks"]:
+            if client == "openai" or provider in ["openai", "together", "groq", "fireworks"]:
                 env["OPENAI_API_KEY"] = api_key
             else:
                 env[f"{provider_upper}_API_KEY"] = api_key
@@ -134,7 +130,7 @@ def get_model_env(config_name: str) -> dict[str, str]:
     return env
 
 
-def get_model_metadata(model: str) -> dict:
+def get_model_metadata(config_name: str) -> dict:
     """
     Load metadata from model config file
     
@@ -147,12 +143,8 @@ def get_model_metadata(model: str) -> dict:
         }
     """
     config = get_config()
-    model_config = config.get_model(model)
+    metadata = config.get_metadata(config_name)
     
-    if not model_config:
-        return {}
-    
-    metadata = model_config.get("metadata", {})
     return {
         "release_date": metadata.get("release_date", "unknown"),
         "size_category": metadata.get("size_category", "unknown"),
@@ -182,58 +174,26 @@ def get_inspect_model(config_name: str, benchmark: str | None = None) -> tuple[s
     
     Returns:
         (model_string, model_args, base_url)
-        e.g., ("openai/gpt-4o", {}, None) or ("openai/solar-pro2", {"api_key": "..."}, "https://...")
+        e.g., ("litellm/anthropic/claude-opus-4-5-20251101", {}, None)
+              ("openai/solar-pro2-251215", {"api_key": "..."}, "https://...")
     """
     config = get_config()
-    model_config = config.get_model(config_name)
     
-    if not model_config:
-        raise ValueError(f"Model config not found: {config_name}")
+    # Build model string using new config structure
+    inspect_model = config.get_inspect_model_string(config_name)
     
-    model_id = model_config.get("model_id", config_name)
-    api_provider = model_config.get("api_provider")
-    
-    # Determine Inspect model string
-    if api_provider:
-        model_name = model_id.split("/")[-1]
-        inspect_model = f"{api_provider}/{model_name}"
-    else:
-        inspect_model = model_id
-    
-    # Get base_url separately (passed to inspect_eval as model_base_url)
-    base_url = model_config.get("base_url") or model_config.get("api_base")
+    # Get base_url (for OpenAI-compatible APIs)
+    base_url = config.get_model_base_url(config_name)
     # Skip base_url for official OpenAI API (inspect_ai already has it as default)
     if base_url and "api.openai.com" in base_url:
         base_url = None
     
-    # Build model_args (without base_url to avoid duplication)
-    model_args = {}
+    # Build model_args
+    model_args = config.get_inspect_model_args(config_name, benchmark)
     
-    # Only pass api_key for non-OpenAI official APIs (OpenAI uses OPENAI_API_KEY env var)
-    api_key_env = model_config.get("api_key_env")
-    if api_key_env and api_key_env != "OPENAI_API_KEY":
-        api_key = os.environ.get(api_key_env)
-        if api_key:
-            model_args["api_key"] = api_key
-    
-    # Set client_timeout for OpenAI API calls only.
-    #
-    # IMPORTANT:
-    # - In Inspect AI, GenerateConfig.timeout controls the retry stop window (tenacity stop_after_delay),
-    #   NOT the OpenAI SDK request timeout.
-    # - Use defaults.client_timeout (or benchmark override client_timeout) to control OpenAI request timeout.
-    defaults = model_config.get("defaults", {})
-    benchmark_overrides = (
-        model_config.get("benchmarks", {}).get(benchmark, {}) if benchmark else {}
-    )
-    provider = model_id.split("/")[0] if "/" in model_id else "openai"
-    client_timeout = benchmark_overrides.get("client_timeout", defaults.get("client_timeout"))
-    if client_timeout is not None and provider == "openai":
-        model_args["client_timeout"] = float(client_timeout)
-    
-    # Set INSPECT_WANDB_MODEL_NAME for Weave display (model name only, without provider prefix)
-    model_name_for_weave = model_config.get("metadata", {}).get("name") or (model_id.split("/")[-1] if "/" in model_id else model_id)
-    os.environ["INSPECT_WANDB_MODEL_NAME"] = model_name_for_weave
+    # Set INSPECT_WANDB_MODEL_NAME for Weave display
+    model_name = config.get_model_name(config_name)
+    os.environ["INSPECT_WANDB_MODEL_NAME"] = model_name
     
     return inspect_model, model_args, base_url
 
@@ -246,15 +206,14 @@ def get_model_generate_config(config_name: str, benchmark: str) -> dict:
         Generation config dict
     """
     config = get_config()
-    model_config = config.get_model(config_name)
     
-    if not model_config:
-        return {}
+    # Get model params (new structure: model.params)
+    params = config.get_model_params(config_name)
     
-    defaults = model_config.get("defaults", {})
-    benchmark_overrides = model_config.get("benchmarks", {}).get(benchmark, {})
+    # Get benchmark-specific overrides
+    benchmark_overrides = config.get_benchmark_config(config_name, benchmark)
     
-    # Merge defaults with benchmark-specific overrides
+    # Merge params with benchmark-specific overrides
     generate_config = {}
     
     # Map config keys to inspect_ai.eval kwargs
@@ -273,8 +232,8 @@ def get_model_generate_config(config_name: str, benchmark: str) -> dict:
     for key, eval_key in key_mapping.items():
         if key in benchmark_overrides:
             generate_config[eval_key] = benchmark_overrides[key]
-        elif key in defaults:
-            generate_config[eval_key] = defaults[key]
+        elif key in params:
+            generate_config[eval_key] = params[key]
     
     return generate_config
 
@@ -500,20 +459,21 @@ Examples:
         print("   Check if YAML file exists in configs/models/ directory.")
         sys.exit(1)
 
-    model_id = model_cfg.get("model_id") or args.config
-
-    # Display model name (openai/solar-pro2 → solar-pro2)
-    model_name = model_id.split("/")[-1] if "/" in model_id else model_id
+    # Get model name from new config structure
+    model_name = config.get_model_name(args.config)
     
+    # Get W&B run name from config (or fallback to model_name)
+    wandb_run_name = config.get_wandb_run_name(args.config) or model_name
+
     wandb_run = wandb.init(
         entity=entity,
         project=project,
-        name=model_name,
+        name=wandb_run_name,
         job_type="evaluation",
         tags=["inspect"],
         config={
             "config": args.config,
-            "model": model_id,
+            "model": model_name,
             "model_name": model_name,
             "limit": args.limit,
             "benchmarks": benchmarks,
@@ -530,7 +490,7 @@ Examples:
     print(f"\n🐯 Horangi Benchmark Runner")
     print(f"{'='*60}")
     print(f"Config: {args.config}")
-    print(f"Model: {model_id}")
+    print(f"Model: {model_name}")
     print(f"Limit: {args.limit} samples per benchmark")
     print(f"Benchmarks: {len(benchmarks)} / {len(ALL_BENCHMARKS)}")
     print(f"Leaderboard: {entity}/{project}")

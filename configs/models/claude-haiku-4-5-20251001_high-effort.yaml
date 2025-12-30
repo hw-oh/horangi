@@ -1,25 +1,27 @@
-# Claude Haiku 4.5 via LiteLLM
-# Uses Extended Thinking (reasoning_tokens)
+# Claude Haiku 4.5 (High Effort)
 
-model_id: litellm/anthropic/claude-haiku-4-5-20251001
+wandb:
+  run_name: "claude-haiku-4-5-20251001: high-effort"
 
 metadata:
-  provider: litellm
-  name: claude-haiku-4-5-20251001
   release_date: "2025-10-01"
-  size_category: None
-  model_size: None
+  size_category: null
+  model_size: null
   context_window: 200000
   max_output_tokens: 64000
 
-api_key_env: ANTHROPIC_API_KEY
+model:
+  name: claude-haiku-4-5-20251001
+  client: litellm
+  provider: anthropic
+  api_key_env: ANTHROPIC_API_KEY
 
-defaults:
-  temperature: 1.0
-  max_tokens: 64000
-  reasoning_effort: high
-  timeout: 7200
-  max_retries: 10
+  params:
+    max_tokens: 64000
+    temperature: 1.0
+    reasoning_effort: high
+    timeout: 7200
+    max_retries: 10
 
 benchmarks:
   bfcl:
@@ -27,4 +29,3 @@ benchmarks:
     max_tokens: 32000
   swebench_verified_official_80:
     max_tokens: 64000
-

@@ -1,32 +1,27 @@
-# =============================================================================
-# Grok-4-Non-Reasoning (Fast) Model Configuration
-# =============================================================================
+# Grok-4 Fast Non-Reasoning
 
-# Model identifier - using LiteLLM native xAI support
-model_id: litellm/xai/grok-4-fast-non-reasoning
+wandb:
+  run_name: "grok-4-fast-non-reasoning"
 
-# Model metadata
 metadata:
-  provider: xai
-  name: grok-4-fast-non-reasoning
   release_date: "2025-07-09"
-  size_category: None
-  model_size: None
+  size_category: null
+  model_size: null
   context_window: 2000000
   max_output_tokens: 65536
 
-# API settings
-api_key_env: XAI_API_KEY
+model:
+  name: grok-4-fast-non-reasoning
+  client: litellm
+  provider: xai
+  api_key_env: XAI_API_KEY
 
-# Default parameters
-defaults:
-  temperature: 0.3
-  max_tokens: 65536
+  params:
+    max_tokens: 65536
+    temperature: 0.3
 
-# Benchmark-specific overrides
 benchmarks:
   bfcl:
     use_native_tools: true
   swebench_verified_official_80:
     max_tokens: 65536
-
