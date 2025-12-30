@@ -10,13 +10,13 @@ metadata:
   size_category: None
   model_size: None
   context_window: 200000
-  max_output_tokens: 64000
+  max_output_tokens: 32000
 
 api_key_env: ANTHROPIC_API_KEY
 
 defaults:
   temperature: 1.0
-  max_tokens: 64000
+  max_tokens: 32000
   reasoning_effort: high
   timeout: 7200
   max_retries: 10
@@ -26,5 +26,5 @@ benchmarks:
     use_native_tools: true
     max_tokens: 32000
   swebench_verified_official_80:
-    max_tokens: 64000
+    max_tokens: 32000
 

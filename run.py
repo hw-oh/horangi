@@ -18,27 +18,20 @@ openai_configs = [
 ]
 
 anthropic_configs = [
-    "claude-opus-4-5-20251101_low-effort",
-    "claude-opus-4-5-20251101_high-effort",
-    "claude-haiku-4-5-20251001_high-effort",
-    "claude-sonnet-4-5-20250929_high-effort",
+    # "claude-opus-4-5-20251101_low-effort",
+    # "claude-opus-4-5-20251101_high-effort",
+    # "claude-haiku-4-5-20251001_high-effort",
+    # "claude-sonnet-4-5-20250929_high-effort",
     "claude-opus-4-20250514_high-effort",
     "claude-opus-4-1-20250805_high-effort",
 ]
 
 xai_configs = [
-    # "grok-4-1-fast-non-reasoning",✅
-    # "grok-4-1-fast-reasoning",✅
-    # "grok-4-1-fast-reasoning_high-effort",
-    # "grok-4-1-fast-reasoning_low-effort",
-    # "grok-4-fast-non-reasoning",✅
-    # "grok-4-fast-reasoning",✅
-    # "grok-4-fast-reasoning_high-effort",
-    # "grok-4-fast-reasoning_low-effort",
+    "grok-4-1-fast-non-reasoning",
+    "grok-4-1-fast-reasoning",
+    "grok-4-fast-non-reasoning",
+    "grok-4-fast-reasoning",
     "grok-4-0709",
-    # "grok-4-0709_high-effort",
-    # "grok-4-0709_low-effort",
-    "grok-4-non-reasoning",
 ]
 
 google_configs = [

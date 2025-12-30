@@ -181,17 +181,24 @@ class LiteLLMAPI(ModelAPI):
     
     def _convert_tools(self, tools: list[ToolInfo]) -> list[dict[str, Any]]:
         """Convert inspect_ai tools to OpenAI format."""
-        return [
-            {
+        result = []
+        for tool in tools:
+            # Convert parameters to dict if it's a Pydantic model
+            params = tool.parameters
+            if hasattr(params, 'model_dump'):
+                params = params.model_dump(exclude_none=True)
+            elif hasattr(params, 'dict'):
+                params = params.dict(exclude_none=True)
+            
+            result.append({
                 "type": "function",
                 "function": {
                     "name": tool.name,
                     "description": tool.description,
-                    "parameters": tool.parameters,
+                    "parameters": params,
                 }
-            }
-            for tool in tools
-        ]
+            })
+        return result
     
     def _convert_tool_choice(self, tool_choice: ToolChoice) -> dict[str, Any] | str:
         """Convert inspect_ai tool_choice to OpenAI format."""
@@ -203,6 +210,9 @@ class LiteLLMAPI(ModelAPI):
             return "required"
         elif isinstance(tool_choice, dict) and "name" in tool_choice:
             return {"type": "function", "function": {"name": tool_choice["name"]}}
+        elif hasattr(tool_choice, 'name'):
+            # Handle ToolFunction Pydantic model
+            return {"type": "function", "function": {"name": tool_choice.name}}
         return "auto"
     
     def _convert_response(self, response: Any, tools: list[ToolInfo]) -> ModelOutput:
