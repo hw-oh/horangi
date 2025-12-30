@@ -44,8 +44,17 @@ from core.config_loader import get_config
 # Register custom model providers
 try:
     import providers  # noqa: F401 - registers litellm provider
+    from providers import (
+        start_vllm_server,
+        shutdown_vllm_server,
+        get_vllm_server,
+    )
+    VLLM_PROVIDER_AVAILABLE = True
 except ImportError:
-    pass
+    VLLM_PROVIDER_AVAILABLE = False
+    start_vllm_server = None
+    shutdown_vllm_server = None
+    get_vllm_server = None
 
 # All benchmarks list (active ones only)
 ALL_BENCHMARKS = [
@@ -172,12 +181,19 @@ def get_inspect_model(config_name: str, benchmark: str | None = None) -> tuple[s
     """
     Get Inspect AI model string, model_args, and base_url from config
     
+    For vLLM models, this also starts the vLLM server if not already running.
+    
     Returns:
         (model_string, model_args, base_url)
         e.g., ("litellm/anthropic/claude-opus-4-5-20251101", {}, None)
               ("openai/solar-pro2-251215", {"api_key": "..."}, "https://...")
+              ("openai/Qwen/Qwen3-4B", {}, "http://localhost:8000/v1")  # vLLM
     """
     config = get_config()
+    
+    # Check if this is a vLLM model
+    if config.is_vllm_client(config_name):
+        return _get_vllm_model(config_name, benchmark)
     
     # Build model string using new config structure
     inspect_model = config.get_inspect_model_string(config_name)
@@ -193,6 +209,46 @@ def get_inspect_model(config_name: str, benchmark: str | None = None) -> tuple[s
     
     # Set INSPECT_WANDB_MODEL_NAME for Weave display
     model_name = config.get_model_name(config_name)
+    os.environ["INSPECT_WANDB_MODEL_NAME"] = model_name
+    
+    return inspect_model, model_args, base_url
+
+
+def _get_vllm_model(config_name: str, benchmark: str | None = None) -> tuple[str, dict, str | None]:
+    """
+    Get Inspect AI model configuration for vLLM models.
+    
+    Starts the vLLM server if not already running.
+    
+    Returns:
+        (model_string, model_args, base_url)
+    """
+    if not VLLM_PROVIDER_AVAILABLE:
+        raise ImportError(
+            "vLLM provider not available. Make sure providers module is importable."
+        )
+    
+    config = get_config()
+    model_config = config.get_model(config_name)
+    model_name = config.get_model_name(config_name)
+    
+    # Check if vLLM server is already running
+    vllm_server = get_vllm_server()
+    if vllm_server is None or not vllm_server.is_running:
+        print(f"\n🔧 vLLM client detected, starting server for: {model_name}")
+        vllm_server = start_vllm_server(model_config)
+    
+    # Use OpenAI-compatible API
+    inspect_model = f"openai/{model_name}"
+    base_url = vllm_server.base_url
+    
+    # Set API key to dummy value (vLLM doesn't require auth by default)
+    os.environ["OPENAI_API_KEY"] = os.environ.get("OPENAI_API_KEY", "dummy-key-for-vllm")
+    
+    # Build model_args
+    model_args = config.get_inspect_model_args(config_name, benchmark)
+    
+    # Set INSPECT_WANDB_MODEL_NAME for Weave display
     os.environ["INSPECT_WANDB_MODEL_NAME"] = model_name
     
     return inspect_model, model_args, base_url
@@ -609,6 +665,12 @@ Examples:
         print(f"\n📊 Ending W&B run...")
         wandb_run.finish()
         print(f"✅ W&B run completed!")
+    
+    # Shutdown vLLM server if it was started
+    if VLLM_PROVIDER_AVAILABLE and get_vllm_server() is not None:
+        print(f"\n🛑 Shutting down vLLM server...")
+        shutdown_vllm_server()
+        print(f"✅ vLLM server shutdown completed!")
     
     print(f"\n{'='*60}")
     print(f"End time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")

@@ -1,0 +1,69 @@
+# vLLM Native Model Template
+# 
+# This template shows how to configure a model to use native vLLM support.
+# The server will be automatically started and managed by the evaluation runner.
+#
+# Usage:
+#   1. Copy this file and rename it to your model name (e.g., Qwen3-4B.yaml)
+#   2. Update the model.name to your HuggingFace model ID
+#   3. Adjust vLLM settings based on your GPU memory and model size
+#   4. Run: uv run run_eval.py --config your-model-name
+
+wandb:
+  run_name: "Model-Name-Here"
+
+metadata:
+  release_date: "YYYY-MM-DD"
+  size_category: "Small (<10B)"  # or "Medium (10-70B)", "Large (>70B)"
+  model_size: 4000000000  # Number of parameters
+  context_window: 32768
+  max_output_tokens: 4096
+
+model:
+  # HuggingFace model ID (e.g., "Qwen/Qwen3-4B-Instruct-2507")
+  name: organization/model-name
+  
+  # Use "vllm" to enable native vLLM support
+  # The server will be automatically started before evaluation
+  client: vllm
+  
+  # Optional: provider name for logging/tracking
+  provider: custom
+  
+  # Generation parameters (passed to the model)
+  params:
+    max_tokens: 4096
+    temperature: 0.0
+  
+  # vLLM server configuration
+  vllm:
+    # GPU settings
+    tensor_parallel_size: 1  # Number of GPUs for tensor parallelism
+    gpu_memory_utilization: 0.9  # Fraction of GPU memory to use
+    
+    # Model settings
+    dtype: auto  # auto, float16, bfloat16, float32
+    max_model_len: 32768  # Maximum sequence length
+    
+    # Server settings
+    port: 8000  # API server port
+    host: "0.0.0.0"  # API server host
+    
+    # Optional settings
+    # trust_remote_code: true  # Enable for custom model architectures
+    # quantization: awq  # awq, gptq, squeezellm, etc.
+    # download_dir: /path/to/cache  # Custom model cache directory
+    # reasoning_parser: deepseek_r1  # For reasoning models
+    
+    # Extra vLLM arguments (passed directly to vllm serve)
+    # extra_args:
+    #   enable_prefix_caching: true
+    #   max_num_seqs: 256
+
+# Benchmark-specific overrides
+benchmarks:
+  bfcl:
+    use_native_tools: false
+  ko_mtbench:
+    temperature: 0.7
+

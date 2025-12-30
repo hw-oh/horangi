@@ -399,6 +399,32 @@ class ConfigLoader:
                 args["client_timeout"] = float(client_timeout)
         
         return args
+    
+    # =========================================================================
+    # vLLM Configuration Helpers
+    # =========================================================================
+    
+    def is_vllm_client(self, config_name: str) -> bool:
+        """
+        Check if a model config uses vLLM client
+        
+        Returns:
+            True if client is "vllm"
+        """
+        return self.get_model_client(config_name) == "vllm"
+    
+    def get_vllm_config(self, config_name: str) -> dict:
+        """
+        Get vLLM-specific configuration
+        
+        New structure: model.vllm
+        
+        Returns:
+            vLLM config dict (tensor_parallel_size, gpu_memory_utilization, etc.)
+        """
+        model_config = self.get_model(config_name)
+        model_section = model_config.get("model", {})
+        return model_section.get("vllm", {})
 
 
 # Global instance
