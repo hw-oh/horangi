@@ -1,13 +1,13 @@
-# vLLM Native Model Template
+# vLLM Model Template
 # 
-# This template shows how to configure a model to use native vLLM support.
-# The server will be automatically started and managed by the evaluation runner.
+# Two modes available:
+#   A) Local vLLM: Server auto-started by evaluation runner (client: vllm)
+#   B) External vLLM: Connect to already-running vLLM server (client: openai)
 #
 # Usage:
 #   1. Copy this file and rename it to your model name (e.g., Qwen3-4B.yaml)
-#   2. Update the model.name to your HuggingFace model ID
-#   3. Adjust vLLM settings based on your GPU memory and model size
-#   4. Run: uv run run_eval.py --config your-model-name
+#   2. Choose mode A or B below and configure accordingly
+#   3. Run: uv run run_eval.py --config your-model-name
 
 wandb:
   run_name: "Model-Name-Here"
@@ -19,46 +19,42 @@ metadata:
   context_window: 32768
   max_output_tokens: 4096
 
+# ============================================================
+# Mode A: Local vLLM (auto-managed server)
+# ============================================================
+# model:
+#   name: organization/model-name  # HuggingFace model ID
+#   client: vllm                   # Enables auto server management
+#   provider: custom
+#   
+#   params:
+#     max_tokens: 4096
+#     temperature: 0.0
+#   
+#   vllm:
+#     tensor_parallel_size: 1
+#     gpu_memory_utilization: 0.9
+#     dtype: auto
+#     max_model_len: 32768
+#     port: 8000
+#     host: "0.0.0.0"
+#     # trust_remote_code: true
+#     # quantization: awq
+#     # reasoning_parser: deepseek_r1
+
+# ============================================================
+# Mode B: External vLLM (already running server, e.g. RunPod)
+# ============================================================
 model:
-  # HuggingFace model ID (e.g., "Qwen/Qwen3-4B-Instruct-2507")
-  name: organization/model-name
+  name: your-served-model-name     # --served-model-name from vLLM server
+  client: openai                   # OpenAI-compatible API
+  provider: vllm
+  base_url: https://your-endpoint.proxy.runpod.net/v1
+  api_key_env: RUNPOD_API_KEY      # Environment variable name for API key
   
-  # Use "vllm" to enable native vLLM support
-  # The server will be automatically started before evaluation
-  client: vllm
-  
-  # Optional: provider name for logging/tracking
-  provider: custom
-  
-  # Generation parameters (passed to the model)
   params:
     max_tokens: 4096
     temperature: 0.0
-  
-  # vLLM server configuration
-  vllm:
-    # GPU settings
-    tensor_parallel_size: 1  # Number of GPUs for tensor parallelism
-    gpu_memory_utilization: 0.9  # Fraction of GPU memory to use
-    
-    # Model settings
-    dtype: auto  # auto, float16, bfloat16, float32
-    max_model_len: 32768  # Maximum sequence length
-    
-    # Server settings
-    port: 8000  # API server port
-    host: "0.0.0.0"  # API server host
-    
-    # Optional settings
-    # trust_remote_code: true  # Enable for custom model architectures
-    # quantization: awq  # awq, gptq, squeezellm, etc.
-    # download_dir: /path/to/cache  # Custom model cache directory
-    # reasoning_parser: deepseek_r1  # For reasoning models
-    
-    # Extra vLLM arguments (passed directly to vllm serve)
-    # extra_args:
-    #   enable_prefix_caching: true
-    #   max_num_seqs: 256
 
 # Benchmark-specific overrides
 benchmarks:
@@ -66,4 +62,9 @@ benchmarks:
     use_native_tools: false
   ko_mtbench:
     temperature: 0.7
+
+
+
+
+
 

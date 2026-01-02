@@ -1,0 +1,31 @@
+# Solar-Open-100B (vLLM External Endpoint)
+#
+# vLLM server is already running on RunPod.
+# Horangi connects via OpenAI-compatible HTTP endpoint.
+# Horangi does NOT manage vLLM lifecycle.
+
+wandb:
+  run_name: "Solar-Open-100B"
+
+metadata:
+  release_date: "2024-12-00"        # 정확한 날짜 몰라도 OK
+  size_category: "Large (30B<)"
+  model_size: 102000000000          # Solar Open 102B
+  context_window: 128000
+
+model:
+  name: solar-open-100b
+  client: openai                    # OpenAI-compatible API
+  provider: vllm
+  base_url: https://mvtyjh1yqxllr6-8000.proxy.runpod.net/v1
+  api_key_env: RUNPOD_API_KEY
+
+  params:
+    max_tokens: 32768
+    temperature: 0.8
+    top_p: 0.95
+    top_k: 50
+
+benchmarks:
+  bfcl:
+    use_native_tools: true           # Solar tool-call template 사용
