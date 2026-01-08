@@ -35,6 +35,10 @@ dependencies = [
     "inspect-evals>=0.3.103",
     "google-genai>=1.55.0",
     "litellm>=1.80.11",
+    # vLLM + transformers 호환성을 위해 명시적으로 지정
+    "transformers>=4.48.0",
+    "huggingface-hub>=0.28.0,<1.0",
+    "numpy<2.3",  # numba 호환성
 ]
 
 [project.scripts]

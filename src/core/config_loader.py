@@ -259,13 +259,32 @@ class ConfigLoader:
         Get custom API base URL
         
         New structure: model.base_url
+        If model.base_url is not set but vllm section exists,
+        automatically generates URL from vllm.host and vllm.port.
         
         Returns:
             Base URL for OpenAI-compatible APIs, or None
         """
         model_config = self.get_model(config_name)
         model_section = model_config.get("model", {})
-        return model_section.get("base_url")
+        
+        # First, check explicit base_url in model section
+        base_url = model_section.get("base_url")
+        if base_url:
+            return base_url
+        
+        # If no explicit base_url, check if vllm section exists
+        # and auto-generate base_url from vllm.host and vllm.port
+        vllm_section = model_config.get("vllm")
+        if vllm_section and vllm_section.get("model_path"):
+            host = vllm_section.get("host", "localhost")
+            port = vllm_section.get("port", 8000)
+            # Use localhost for connection even if host is 0.0.0.0
+            if host == "0.0.0.0":
+                host = "localhost"
+            return f"http://{host}:{port}/v1"
+        
+        return None
     
     def get_model_api_key_env(self, config_name: str) -> Optional[str]:
         """
@@ -406,6 +425,60 @@ class ConfigLoader:
                 args["timeout"] = float(timeout)
         
         return args
+    
+    # =========================================================================
+    # vLLM Server Configuration
+    # =========================================================================
+    
+    def get_vllm_config(self, config_name: str) -> Optional[dict[str, Any]]:
+        """
+        Get vLLM server configuration
+        
+        New structure: vllm section (top-level)
+        
+        Returns:
+            vLLM config dict if present, None otherwise
+            {
+                "model_path": "LGAI-EXAONE/EXAONE-4.0.1-32B-Instruct",
+                "tensor_parallel_size": 4,
+                "gpu_memory_utilization": 0.9,
+                "port": 8000,
+                "max_model_len": 32768,
+                "trust_remote_code": True,
+                ...
+            }
+        """
+        model_config = self.get_model(config_name)
+        vllm_section = model_config.get("vllm")
+        
+        if not vllm_section:
+            return None
+        
+        return vllm_section
+    
+    def has_vllm_config(self, config_name: str) -> bool:
+        """
+        Check if vLLM server configuration exists
+        
+        Returns:
+            True if vllm section is present and has model_path
+        """
+        vllm_config = self.get_vllm_config(config_name)
+        return vllm_config is not None and "model_path" in vllm_config
+    
+    def get_vllm_base_url(self, config_name: str) -> Optional[str]:
+        """
+        Get vLLM server base URL (constructed from port)
+        
+        Returns:
+            Base URL (e.g., "http://localhost:8000/v1") or None
+        """
+        vllm_config = self.get_vllm_config(config_name)
+        if not vllm_config:
+            return None
+        
+        port = vllm_config.get("port", 8000)
+        return f"http://localhost:{port}/v1"
 
 
 # Global instance

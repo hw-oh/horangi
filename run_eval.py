@@ -42,6 +42,7 @@ import pandas as pd
 import wandb
 from inspect_ai import eval as inspect_eval
 from core.config_loader import get_config
+from server.vllm_manager import VLLMServerManager
 
 # Register custom model providers
 try:
@@ -416,6 +417,7 @@ def run_benchmark(
             log_dir="./logs",
             fail_on_error=False,
             continue_on_fail=True,
+            display="plain",  # tqdm-style progress bar
             **generate_config,
         )
         
@@ -602,6 +604,16 @@ Examples:
     # Combine default tags with user-provided tags
     tags = ["inspect"] + args.tag
     
+    # Check for vLLM server auto-start configuration
+    vllm_config = config.get_vllm_config(args.config)
+    vllm_server = None
+    
+    if vllm_config:
+        print(f"\n🔧 vLLM server configuration detected")
+        print(f"   Model: {vllm_config.get('model_path')}")
+        print(f"   Will auto-start server before evaluation")
+        tags.append("vllm")
+    
     # 이전 벤치마크 결과 (resume 시 사용)
     previous_benchmark_scores = {}
     
@@ -650,25 +662,47 @@ Examples:
     print(f"Benchmarks: {len(benchmarks)} / {len(ALL_BENCHMARKS)}")
     print(f"Leaderboard: {entity}/{project}")
     print(f"Start time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    if vllm_config:
+        print(f"vLLM Auto-Start: Enabled")
     print(f"{'='*60}")
+    
+    # Start vLLM server if configured
+    if vllm_config:
+        try:
+            vllm_server = VLLMServerManager(vllm_config)
+            vllm_server.start()
+            
+            # Update base_url in environment if using hosted_vllm
+            # This ensures the model connects to the auto-started server
+            os.environ["HOSTED_VLLM_API_BASE"] = vllm_server.base_url
+        except Exception as e:
+            print(f"❌ Failed to start vLLM server: {e}")
+            if wandb_run is not None:
+                wandb_run.finish(exit_code=1)
+            sys.exit(1)
     
     # Track execution results
     results = []
     benchmark_scores = {}
     
-    for i, benchmark in enumerate(benchmarks, 1):
-        print(f"\n[{i}/{len(benchmarks)}] ", end="")
-        name, success, error, scores = run_benchmark(
-            benchmark, 
-            args.config,
-            args.limit,
-            wandb_entity=entity,
-            wandb_project=project,
-        )
-        results.append((name, success, error))
-        
-        if scores:
-            benchmark_scores[name] = scores
+    try:
+        for i, benchmark in enumerate(benchmarks, 1):
+            print(f"\n[{i}/{len(benchmarks)}] ", end="")
+            name, success, error, scores = run_benchmark(
+                benchmark, 
+                args.config,
+                args.limit,
+                wandb_entity=entity,
+                wandb_project=project,
+            )
+            results.append((name, success, error))
+            
+            if scores:
+                benchmark_scores[name] = scores
+    finally:
+        # Stop vLLM server if we started it
+        if vllm_server is not None:
+            vllm_server.stop()
     
     # Resume인 경우 이전 결과와 merge (새 결과가 우선)
     if args.resume and previous_benchmark_scores:

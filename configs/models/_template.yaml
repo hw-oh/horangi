@@ -77,6 +77,25 @@ benchmarks:
   #   max_tokens: 16384
 
 # =============================================================================
+# vLLM Server Auto-Start (optional)
+# =============================================================================
+#
+# If vllm section is present, run_eval.py will automatically start a vLLM server
+# before evaluation and stop it after completion.
+# If vllm section is absent, it will use the external server specified in model.base_url.
+
+# vllm:
+#   model_path: "LGAI-EXAONE/EXAONE-4.0.1-32B-Instruct"  # HuggingFace model ID or local path
+#   tensor_parallel_size: 4                               # Number of GPUs for tensor parallelism
+#   gpu_memory_utilization: 0.9                           # GPU memory utilization (0.0-1.0)
+#   port: 8000                                            # Server port
+#   max_model_len: 32768                                  # Maximum model context length
+#   trust_remote_code: true                               # Trust remote code from HuggingFace
+#   # dtype: auto                                         # Data type (auto, float16, bfloat16)
+#   # quantization: null                                  # Quantization method (awq, gptq, etc.)
+#   # enforce_eager: false                                # Disable CUDA graph for debugging
+
+# =============================================================================
 # Examples by Model Type
 # =============================================================================
 #
@@ -101,3 +120,15 @@ benchmarks:
 #      provider: upstage
 #      base_url: https://api.upstage.ai/v1
 #      api_key_env: UPSTAGE_API_KEY
+#
+# 4. vLLM Auto-Start (Local Model):
+#    vllm:
+#      model_path: "LGAI-EXAONE/EXAONE-4.0.1-32B-Instruct"
+#      tensor_parallel_size: 4
+#      gpu_memory_utilization: 0.9
+#    model:
+#      name: exaone-4.0.1-32b
+#      client: litellm
+#      provider: hosted_vllm
+#      base_url: http://localhost:8000/v1
+#      api_key_env: HOSTED_VLLM_API_KEY

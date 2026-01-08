@@ -1,0 +1,49 @@
+# EXAONE-4.0-1.2B (vLLM, OpenAI-Compatible)
+
+wandb:
+  run_name: "EXAONE-4.0-1.2B: enable-thinking"
+
+metadata:
+  release_date: "2025-07-29"
+  size_category: "Small (<10B)"
+  model_size: 1200000000
+  active_params: 1200000000
+  context_window: 65536
+
+# vLLM Server Auto-Start Configuration
+# If present, run_eval.py will automatically start/stop vLLM server
+vllm:
+  model_path: "LGAI-EXAONE/EXAONE-4.0-1.2B"
+  tensor_parallel_size: 1
+  port: 8002
+  host: "0.0.0.0"
+  max_model_len: 65536
+  trust_remote_code: true
+  served_model_name: "exaone-4.0-1.2b"
+  enable_auto_tool_choice: true
+  tool_call_parser: "hermes"
+  reasoning_parser: "deepseek_r1"
+
+model:
+  name: exaone-4.0-1.2b
+  client: litellm
+  provider: hosted_vllm
+  # base_url은 vllm.host와 vllm.port에서 자동 생성됨
+  api_key_env: HOSTED_VLLM_API_KEY
+
+  params:
+    max_tokens: 32768
+    temperature: 0.6
+    top_p: 0.95
+    extra_body:
+      chat_template_kwargs:
+        enable_thinking: true
+
+benchmarks:
+  bfcl:
+    use_native_tools: true
+  ko_arc_agi:
+    extra_body:
+      repetition_penalty: 1.05
+      chat_template_kwargs:
+        enable_thinking: true
