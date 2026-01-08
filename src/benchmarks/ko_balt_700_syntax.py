@@ -17,7 +17,13 @@ CONFIG = BenchmarkConfig(
         "choices": "options",
     },
     answer_format="letter",  # Data's answer is already a letter (A, B, C, ...)
-    solver="multiple_choice",
+    solver="korean_multiple_choice",
+    solver_args={
+        "template": """다음은 언어학 관련 객관식 문제입니다. 제시된 지문과 질문, 그리고 선택지를 주의 깊게 읽고, "정답: $X" 라고 결론지으십시오. 여기서 X는 {letters} 중 하나입니다.
+
+{question}
+
+{choices}"""
+    },
     scorer="choice",
-    system_message="주어진 질문에 가장 적절한 답을 선택하세요.",
 )

@@ -18,9 +18,10 @@ CONFIG = BenchmarkConfig(
     },
     answer_format="identity",  # Use answer as-is
     solver="generate",
+    solver_args={
+        "template": """다음은 전문가 수준의 문제입니다. 문제 해결 과정을 단계별로 서술하고, 마지막에 "최종 정답:" 형식으로 결론을 제시하십시오.
+
+{prompt}"""
+    },
     scorer="hle_grader",
-    system_message="""답변은 다음 형식으로 작성해 주십시오.
-설명: {답변 선택에 대한 설명}
-답변: {선택한 답변}
-확신도: {답변에 대한 확신도 (0%~100%)}""",
 )

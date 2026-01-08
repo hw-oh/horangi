@@ -154,6 +154,11 @@ class LiteLLMAPI(ModelAPI):
             if value is not None:
                 params[key] = value
         
+        # Handle timeout parameter for litellm
+        timeout = params.pop("timeout", None)
+        if timeout is not None:
+            params["timeout"] = float(timeout)
+        
         # Make the API call
         response = await acompletion(**params)
         

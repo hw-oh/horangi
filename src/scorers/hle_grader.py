@@ -25,36 +25,20 @@ from inspect_ai.scorer import (
 from inspect_ai.solver import TaskState
 
 
-JUDGE_PROMPT = """Based on the precise and clear [correct answer] below, determine whether the following [response] is correct for the [question].
+JUDGE_PROMPT = """아래의 명확한 [정답]을 기준으로, [응답]이 [질문]에 대해 올바른지 판단하세요.
 
-[Question]: {question}
+[질문]: {question}
 
-[Response]: {answer}
+[응답]: {answer}
 
-[Correct Answer]: {criterion}
+[정답]: {criterion}
 
-Focus only on whether there is a meaningful difference between the [correct answer] and [response].
-Do not mention background information about the problem or attempts to solve it, and do not argue for an answer different from the [correct answer]. Focus only on whether the two answers match.
-Explain in one or two sentences why the [response] is correct or incorrect based on the [correct answer].
-Finally, write 'GRADE: C' if correct, or 'GRADE: I' if incorrect.
+[정답]과 [응답] 사이에 의미 있는 차이가 있는지만 집중하세요.
+문제의 배경 정보나 풀이 과정은 언급하지 말고, [정답]과 다른 답을 주장하지 마세요. 오직 두 답이 일치하는지만 판단하세요.
+[정답]을 기준으로 [응답]이 왜 맞거나 틀린지 한두 문장으로 설명하세요.
+마지막에 정답이면 'GRADE: C', 오답이면 'GRADE: I'를 작성하세요.
 
 """
-
-JUDGE_PROMPT2 = """Determine if the following [response] matches the [correct answer].
-
-[Question]: {question}
-
-[Response]: {answer}
-
-[Correct Answer]: {criterion}
-
-[Instructions]:
-- Only determine if there is a semantic difference between [correct answer] and [response].
-- It is correct if the meaning is the same even if the expression is different (e.g., "true" = "True" = "correct").
-- Explain the reason for your judgment in one or two sentences.
-- End with 'GRADE: C' (correct) or 'GRADE: I' (incorrect).
-"""
-
 
 def _is_correct(value) -> bool:
     """Determine if score.value is correct (supports both number/string)"""
@@ -115,7 +99,12 @@ def _extract_answer(response: str, answer_type: str) -> str:
         if match:
             return match.group(1).upper()
     else:
-        # exactMatch: Find "Exact Answer: ..." format
+        # exactMatch: Find "최종 정답:" or "Exact Answer:" format
+        # Korean format first (priority)
+        match = re.search(r"최종 정답:\s*(.+?)(?:\n|$)", response)
+        if match:
+            return match.group(1).strip()
+        # English format fallback
         match = re.search(r"Exact Answer:\s*(.+?)(?:\n|$)", response, re.IGNORECASE)
         if match:
             return match.group(1).strip()

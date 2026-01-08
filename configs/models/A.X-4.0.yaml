@@ -1,0 +1,30 @@
+# A.X-4.0 (vLLM, OpenAI-Compatible)
+
+wandb:
+  run_name: "A.X-4.0"
+
+metadata:
+  release_date: "2025-04-30"
+  size_category: "Large (30B<)"
+  model_size: 72000000000
+  active_params: 72000000000
+  context_window: 131072
+
+model:
+  name: a.x-4.0
+  client: litellm
+  provider: hosted_vllm
+  base_url: http://localhost:8001/v1
+  api_key_env: HOSTED_VLLM_API_KEY
+
+  params:
+    max_tokens: 65536
+    temperature: 0.6
+    top_p: 0.95
+    extra_body:
+      chat_template_kwargs:
+        enable_thinking: true
+
+benchmarks:
+  bfcl:
+    use_native_tools: true

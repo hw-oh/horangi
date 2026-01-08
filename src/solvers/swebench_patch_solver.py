@@ -74,12 +74,7 @@ PATCH_EXAMPLE = '''Here is an example of a patch file. It consists of changes to
      return points
 </patch>
 
-CRITICAL FORMATTING REQUIREMENTS:
-1. You MUST use the EXACT unified diff format shown above. Do NOT use any other format.
-2. Each file must start with "--- a/filepath" and "+++ b/filepath" headers.
-3. Each hunk header MUST follow the format @@ -start,count +start,count @@ where start is the line number and count is the number of lines.
-4. Do NOT use alternative formats like "*** Begin Patch", "*** Update File:", or any other non-standard format.
-5. The patch must be directly applicable using `git apply`.
+CRITICAL: When generating the patch, you MUST include proper line numbers in the @@ hunk headers. Each hunk header must follow the format @@ -start,count +start,count @@ where start is the line number and count is the number of lines. Do NOT use @@ @@ without line numbers.
 '''
 
 
@@ -181,9 +176,8 @@ def swebench_patch_solver(include_hints: bool = True) -> Solver:
 
         # Final instruction
         user_prompt += (
-            "I need you to solve the provided issue by generating a single patch file that I can apply "
-            "directly to this repository using git apply. Please respond with a single patch file in the "
-            "format shown above.\n\n"
+            "I need you to solve the provided issue by generating a single patch file that I can apply directly to this repository using git apply. Please respond with a single patch file in the format shown above.\n\n"
+            "Wrap your patch in <patch> tags like this: <patch>your patch here</patch>\n\n"
             "Respond below:\n"
         )
 

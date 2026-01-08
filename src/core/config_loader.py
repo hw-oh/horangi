@@ -388,15 +388,22 @@ class ConfigLoader:
             if api_key:
                 args["api_key"] = api_key
         
-        # Client timeout (for OpenAI provider)
+        # Client timeout and request timeout
+        client = model_section.get("client", "openai")
         params = model_section.get("params", {})
         benchmark_overrides = model_config.get("benchmarks", {}).get(benchmark, {}) if benchmark else {}
         
+        # client_timeout for OpenAI provider
         client_timeout = benchmark_overrides.get("client_timeout", params.get("client_timeout"))
         if client_timeout is not None:
-            client = model_section.get("client", "openai")
             if client == "openai":
                 args["client_timeout"] = float(client_timeout)
+        
+        # timeout for litellm provider (passed to acompletion)
+        timeout = benchmark_overrides.get("timeout", params.get("timeout"))
+        if timeout is not None:
+            if client == "litellm":
+                args["timeout"] = float(timeout)
         
         return args
 

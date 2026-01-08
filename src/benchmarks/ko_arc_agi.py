@@ -17,5 +17,4 @@ CONFIG = BenchmarkConfig(
     answer_format="identity",
     solver="generate",
     scorer="grid_match",
-    system_message="주어진 ARC 문제의 패턴을 분석하고, 출력 그리드를 정확히 예측하세요.",
 )

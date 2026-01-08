@@ -1,0 +1,32 @@
+# GPT-OSS-120B (vLLM External Endpoint)
+#
+# vLLM server is already running on RunPod.
+# Horangi connects via OpenAI-compatible HTTP endpoint.
+# Horangi does NOT manage vLLM lifecycle.
+
+wandb:
+  run_name: "GPT-OSS-120B: high-effort"
+
+metadata:
+  release_date: 2025-08-05
+  size_category: "Large (30B<)"
+  model_size: 120000000000          # GPT-OSS 120B
+  active_params: 12000000000        # 12B
+  context_window: 131072
+
+model:
+  name: gpt-oss-120b
+  client: openai                    # OpenAI-compatible API
+  provider: vllm
+  base_url: http://localhost:8000/v1
+  api_key_env: RUNPOD_API_KEY
+
+  params:
+    max_tokens: 120000
+    temperature: 0.1
+    top_p: 1.0
+    reasoning_effort: high
+
+benchmarks:
+  bfcl:
+    use_native_tools: true           # Solar tool-call template 사용

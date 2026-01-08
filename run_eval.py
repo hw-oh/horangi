@@ -49,9 +49,9 @@ except ImportError:
 
 # All benchmarks list (active ones only)
 ALL_BENCHMARKS = [
+    "ko_arc_agi",
     "kmmlu_pro",
     "ko_hle",
-    "swebench_verified_official_80",
     "ko_hellaswag",
     "ko_aime2025",
     "ifeval_ko",
@@ -65,15 +65,15 @@ ALL_BENCHMARKS = [
     "squad_kor_v1",
     "ko_truthful_qa",
     "ko_moral",
-    "ko_arc_agi",
-    "hrm8k",  # HRM8K: 한국어 수학 추론 (GSM8K, KSM, MATH, MMMLU, OMNI_MATH 통합)
+    "hrm8k",
     "korean_hate_speech",
     "kobbq",
+    "ko_mtbench",
     "ko_hallulens_wikiqa",
     # "ko_hallulens_longwiki",
     "ko_hallulens_nonexistent",
     "bfcl",
-    "ko_mtbench",
+    "swebench_verified_official_80",
 ]
 
 # Quick test benchmarks (lightweight ones only)
@@ -110,8 +110,11 @@ def get_model_env(config_name: str) -> dict[str, str]:
     # Set base URL
     base_url = config.get_model_base_url(config_name)
     if base_url:
+        # hosted_vllm은 HOSTED_VLLM_API_BASE 사용
+        if provider == "hosted_vllm":
+            env["HOSTED_VLLM_API_BASE"] = base_url
         # OpenAI-compatible APIs use OPENAI_BASE_URL
-        if client == "openai" or provider in ["openai", "together", "groq", "fireworks"]:
+        elif client == "openai" or provider in ["openai", "together", "groq", "fireworks"]:
             env["OPENAI_BASE_URL"] = base_url
         else:
             env[f"{provider_upper}_BASE_URL"] = base_url
@@ -121,8 +124,11 @@ def get_model_env(config_name: str) -> dict[str, str]:
     if api_key_env:
         api_key = os.environ.get(api_key_env)
         if api_key:
+            # hosted_vllm은 HOSTED_VLLM_API_KEY 사용
+            if provider == "hosted_vllm":
+                env["HOSTED_VLLM_API_KEY"] = api_key
             # OpenAI-compatible APIs
-            if client == "openai" or provider in ["openai", "together", "groq", "fireworks"]:
+            elif client == "openai" or provider in ["openai", "together", "groq", "fireworks"]:
                 env["OPENAI_API_KEY"] = api_key
             else:
                 env[f"{provider_upper}_API_KEY"] = api_key
@@ -182,10 +188,26 @@ def get_inspect_model(config_name: str, benchmark: str | None = None) -> tuple[s
     # Build model string using new config structure
     inspect_model = config.get_inspect_model_string(config_name)
     
+    # Get client type and provider
+    client = config.get_model_client(config_name)
+    provider = config.get_model_provider(config_name)
+    
     # Get base_url (for OpenAI-compatible APIs)
     base_url = config.get_model_base_url(config_name)
+    
+    # For litellm hosted_vllm: use environment variable instead of model_base_url
+    if client == "litellm" and provider == "hosted_vllm":
+        if base_url:
+            os.environ["HOSTED_VLLM_API_BASE"] = base_url
+        # Get API key from config and set environment variable
+        api_key_env = config.get_model_api_key_env(config_name)
+        if api_key_env:
+            api_key = os.environ.get(api_key_env)
+            if api_key:
+                os.environ["HOSTED_VLLM_API_KEY"] = api_key
+        base_url = None  # Don't pass to inspect_eval
     # Skip base_url for official OpenAI API (inspect_ai already has it as default)
-    if base_url and "api.openai.com" in base_url:
+    elif base_url and "api.openai.com" in base_url:
         base_url = None
     
     # Build model_args
@@ -234,6 +256,11 @@ def get_model_generate_config(config_name: str, benchmark: str) -> dict:
             generate_config[eval_key] = benchmark_overrides[key]
         elif key in params:
             generate_config[eval_key] = params[key]
+    
+    # extra_body: litellm completion 호출 시 추가 파라미터 (GLM enable_thinking 등)
+    extra_body = benchmark_overrides.get("extra_body") or params.get("extra_body")
+    if extra_body:
+        generate_config["extra_body"] = extra_body
     
     return generate_config
 
@@ -422,6 +449,8 @@ Examples:
                         help="Run only quick/light benchmarks")
     parser.add_argument("--only", type=str, default="",
                         help="Comma-separated list of benchmarks to run (exclusive)")
+    parser.add_argument("--tag", type=str, action="append", default=[],
+                        help="Additional W&B tags (can be used multiple times, e.g., --tag exp1 --tag test)")
     
     args = parser.parse_args()
     
@@ -465,12 +494,15 @@ Examples:
     # Get W&B run name from config (or fallback to model_name)
     wandb_run_name = config.get_wandb_run_name(args.config) or model_name
 
+    # Combine default tags with user-provided tags
+    tags = ["inspect"] + args.tag
+    
     wandb_run = wandb.init(
         entity=entity,
         project=project,
         name=wandb_run_name,
         job_type="evaluation",
-        tags=["inspect"],
+        tags=tags,
         config={
             "config": args.config,
             "model": model_name,

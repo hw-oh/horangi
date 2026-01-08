@@ -15,7 +15,7 @@ from inspect_ai import Task
 from inspect_ai.dataset import Sample, MemoryDataset
 from inspect_ai.scorer import Scorer, choice, match, model_graded_qa
 from scorers import hle_grader, math_grader
-from inspect_ai.solver import Solver, multiple_choice, generate, system_message
+from inspect_ai.solver import Solver, multiple_choice, generate, system_message, prompt_template
 
 from benchmarks import get_benchmark_config
 from core.loaders import load_weave_data, load_jsonl_data
@@ -221,6 +221,7 @@ def get_scorer_by_name(scorer_name: str) -> list[Scorer]:
     # Built-in scorers
     from scorers import hallulens_qa_scorer, refusal_scorer
     from scorers.swebench_server_scorer import swebench_server_scorer
+    from inspect_evals.squad.squad import f1 as squad_f1, exact as squad_exact
     
     builtin_scorers = {
         "choice": lambda: [choice()],
@@ -235,6 +236,8 @@ def get_scorer_by_name(scorer_name: str) -> list[Scorer]:
         "swebench_server_scorer": lambda: [swebench_server_scorer()],
         # Math scorer
         "math_grader": lambda: [math_grader()],
+        # SQuAD scorers (F1 + Exact Match)
+        "squad": lambda: [squad_f1(), squad_exact()],
     }
     if scorer_name in builtin_scorers:
         return builtin_scorers[scorer_name]()
@@ -263,9 +266,16 @@ def get_solver_by_name(solver_name: str, solver_args: dict | None = None) -> lis
     # Built-in solvers
     from solvers.swebench_patch_solver import swebench_patch_solver
     
+    def _generate_with_template(**kw):
+        """generate solver with optional template support"""
+        template = kw.pop("template", None)
+        if template:
+            return [prompt_template(template), generate(**kw)]
+        return [generate(**kw)]
+    
     builtin_solvers = {
-        "multiple_choice": lambda **kw: [multiple_choice()],
-        "generate": lambda **kw: [generate()],
+        "multiple_choice": lambda **kw: [multiple_choice(**kw)],
+        "generate": _generate_with_template,
         # SWE-bench solver
         "swebench_patch_solver": lambda **kw: [swebench_patch_solver(**kw)],
     }

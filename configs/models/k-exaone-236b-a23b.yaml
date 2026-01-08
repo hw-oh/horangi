@@ -1,0 +1,33 @@
+# Grok-4.1 Fast Reasoning
+
+wandb:
+  run_name: "K-EXAONE-236B-A23B: enable-thinking"
+
+metadata:
+  release_date: "2025-12-31"
+  size_category: "Large (30B<)"
+  model_size: 236000000000
+  active_params: 23000000000
+  context_window: 262144
+  max_output_tokens: 131072
+
+model:
+  name: LGAI-EXAONE/K-EXAONE-236B-A23B
+  client: litellm
+  provider: friendliai
+  api_key_env: FRIENDLI_TOKEN
+
+  params:
+    max_tokens: 131072
+    temperature: 1.0
+    top_p: 0.95
+    presence_penalty: 0.0
+    extra_body:
+      chat_template_kwargs:
+        enable_thinking: true
+
+benchmarks:
+  bfcl:
+    use_native_tools: true
+  swebench_verified_official_80:
+    max_tokens: 65536

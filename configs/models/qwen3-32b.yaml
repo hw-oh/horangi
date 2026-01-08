@@ -1,26 +1,25 @@
-# EXAONE-4.0.1-32B (vLLM, OpenAI-Compatible)
-
 wandb:
-  run_name: "EXAONE-4.0.1-32B: enable-thinking"
+  run_name: "Qwen3-32B: enable-thinking"
 
 metadata:
-  release_date: "2025-07-29"
+  release_date: "2025-04-28"
   size_category: "Large (30B<)"
   model_size: 32000000000
   active_params: 32000000000
   context_window: 32768
 
 model:
-  name: exaone-4.0.1-32b
+  name: qwen3-32b
   client: litellm
   provider: hosted_vllm
-  base_url: http://localhost:8000/v1
+  base_url: http://localhost:8002/v1
   api_key_env: HOSTED_VLLM_API_KEY
 
   params:
     max_tokens: 16384
     temperature: 0.6
     top_p: 0.95
+    top_k: 20
     extra_body:
       chat_template_kwargs:
         enable_thinking: true
@@ -28,6 +27,3 @@ model:
 benchmarks:
   bfcl:
     use_native_tools: true
-  ko_arc_agi:
-    extra_body:
-      repetition_penalty: 1.05
