@@ -19,6 +19,8 @@ vllm:
   max_model_len: 32768
   trust_remote_code: true
   served_model_name: "gemma-3-1b-it"
+  enable_auto_tool_choice: true
+  tool_call_parser: "hermes"
 
 model:
   name: gemma-3-1b-it
