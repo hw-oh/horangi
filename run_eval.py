@@ -4,6 +4,7 @@ import argparse
 import locale
 import os
 import sys
+from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 
@@ -37,6 +38,7 @@ except locale.Error:
 # Add src folder to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
+import pandas as pd
 import wandb
 from inspect_ai import eval as inspect_eval
 from core.config_loader import get_config
@@ -158,6 +160,84 @@ def get_model_metadata(config_name: str) -> dict:
     }
 
 
+def get_previous_benchmark_scores(entity: str, project: str, run_id: str) -> dict:
+    """
+    W&B API로 이전 run의 benchmark_detail_table에서 점수 불러오기
+    
+    Args:
+        entity: W&B entity
+        project: W&B project
+        run_id: W&B run ID
+    
+    Returns:
+        {"benchmark_name": {"score": 0.85, "details": {...}}, ...}
+    """
+    try:
+        api = wandb.Api()
+        run = api.run(f"{entity}/{project}/{run_id}")
+        
+        # benchmark_detail_table에서 결과 추출
+        # W&B Table은 run.history()에서 가져올 수 있음
+        history = run.history(keys=["benchmark_detail_table"])
+        
+        if history.empty or "benchmark_detail_table" not in history.columns:
+            print(f"⚠️ benchmark_detail_table not found in run {run_id}")
+            return {}
+        
+        # 마지막 로깅된 테이블 가져오기
+        table_data = history["benchmark_detail_table"].dropna().iloc[-1]
+        
+        if table_data is None:
+            print(f"⚠️ benchmark_detail_table is empty in run {run_id}")
+            return {}
+        
+        # W&B Table JSON에서 데이터 추출
+        # table_data는 wandb.Table 참조이므로 artifact에서 가져와야 함
+        benchmark_scores = {}
+        
+        # run.summary에서 직접 가져오기 시도 (더 간단한 방법)
+        # 또는 logged artifacts에서 테이블 데이터 가져오기
+        for artifact in run.logged_artifacts():
+            if "benchmark_detail_table" in artifact.name:
+                table = artifact.get("benchmark_detail_table")
+                if table:
+                    df = table.get_dataframe()
+                    for _, row in df.iterrows():
+                        benchmark_name = row.get("benchmark")
+                        if benchmark_name:
+                            score_info = {"score": row.get("score")}
+                            # detail_ 접두사가 붙은 컬럼들을 details로 수집
+                            details = {}
+                            for col in df.columns:
+                                if col.startswith("detail_"):
+                                    detail_key = col.replace("detail_", "")
+                                    if pd.notna(row.get(col)):
+                                        details[detail_key] = row.get(col)
+                            if details:
+                                score_info["details"] = details
+                            benchmark_scores[benchmark_name] = score_info
+                    break
+        
+        # Artifact에서 못 가져온 경우, summary에서 개별 점수 가져오기 시도
+        if not benchmark_scores:
+            summary = run.summary
+            # summary에 저장된 벤치마크별 점수가 있는지 확인
+            for key, value in summary.items():
+                # 벤치마크 이름 패턴 매칭 (예: ko_arc_agi_score)
+                if key.endswith("_score") and isinstance(value, (int, float)):
+                    benchmark_name = key.replace("_score", "")
+                    benchmark_scores[benchmark_name] = {"score": value, "details": {}}
+        
+        print(f"✅ Loaded {len(benchmark_scores)} benchmark scores from previous run")
+        return benchmark_scores
+        
+    except Exception as e:
+        print(f"⚠️ Failed to load previous benchmark scores: {e}")
+        import traceback
+        traceback.print_exc()
+        return {}
+
+
 def get_task_function(benchmark: str):
     """
     Get task function from horangi.py by benchmark name
@@ -220,6 +300,26 @@ def get_inspect_model(config_name: str, benchmark: str | None = None) -> tuple[s
     return inspect_model, model_args, base_url
 
 
+def deep_merge(base: dict, override: dict) -> dict:
+    """
+    Deep merge two dicts. Override values take precedence.
+    
+    Args:
+        base: Base dictionary
+        override: Override dictionary (values take precedence)
+    
+    Returns:
+        Merged dictionary
+    """
+    result = deepcopy(base)
+    for key, value in override.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = deep_merge(result[key], value)
+        else:
+            result[key] = deepcopy(value)
+    return result
+
+
 def get_model_generate_config(config_name: str, benchmark: str) -> dict:
     """
     Get generation config (temperature, max_tokens, etc.) from model config
@@ -258,7 +358,10 @@ def get_model_generate_config(config_name: str, benchmark: str) -> dict:
             generate_config[eval_key] = params[key]
     
     # extra_body: litellm completion 호출 시 추가 파라미터 (GLM enable_thinking 등)
-    extra_body = benchmark_overrides.get("extra_body") or params.get("extra_body")
+    # Deep merge로 전역 config를 기본으로 하고, 벤치마크별 config가 겹치는 부분만 덮어쓰기
+    base_extra_body = params.get("extra_body", {})
+    override_extra_body = benchmark_overrides.get("extra_body", {})
+    extra_body = deep_merge(base_extra_body, override_extra_body)
     if extra_body:
         generate_config["extra_body"] = extra_body
     
@@ -451,6 +554,8 @@ Examples:
                         help="Comma-separated list of benchmarks to run (exclusive)")
     parser.add_argument("--tag", type=str, action="append", default=[],
                         help="Additional W&B tags (can be used multiple times, e.g., --tag exp1 --tag test)")
+    parser.add_argument("--resume", type=str, default=None,
+                        help="Resume existing W&B run by run ID (e.g., abc123xy)")
     
     args = parser.parse_args()
     
@@ -497,21 +602,39 @@ Examples:
     # Combine default tags with user-provided tags
     tags = ["inspect"] + args.tag
     
-    wandb_run = wandb.init(
-        entity=entity,
-        project=project,
-        name=wandb_run_name,
-        job_type="evaluation",
-        tags=tags,
-        config={
-            "config": args.config,
-            "model": model_name,
-            "model_name": model_name,
-            "limit": args.limit,
-            "benchmarks": benchmarks,
-        },
-    )
-    print(f"✅ W&B run started: {wandb_run.url}")
+    # 이전 벤치마크 결과 (resume 시 사용)
+    previous_benchmark_scores = {}
+    
+    if args.resume:
+        # Resume 전에 이전 run의 벤치마크 결과 불러오기
+        print(f"\n📥 Loading previous benchmark scores from run {args.resume}...")
+        previous_benchmark_scores = get_previous_benchmark_scores(entity, project, args.resume)
+        
+        # Resume existing run
+        wandb_run = wandb.init(
+            entity=entity,
+            project=project,
+            id=args.resume,
+            resume="must",  # 반드시 기존 run이어야 함
+        )
+        print(f"✅ W&B run resumed: {wandb_run.url}")
+    else:
+        # Create new run
+        wandb_run = wandb.init(
+            entity=entity,
+            project=project,
+            name=wandb_run_name,
+            job_type="evaluation",
+            tags=tags,
+            config={
+                "config": args.config,
+                "model": model_name,
+                "model_name": model_name,
+                "limit": args.limit,
+                "benchmarks": benchmarks,
+            },
+        )
+        print(f"✅ W&B run started: {wandb_run.url}")
     
     # Note: Weave is initialized by inspect_wandb hooks automatically
     # Don't call weave.init() here as it conflicts with the hooks' initialization
@@ -546,6 +669,18 @@ Examples:
         
         if scores:
             benchmark_scores[name] = scores
+    
+    # Resume인 경우 이전 결과와 merge (새 결과가 우선)
+    if args.resume and previous_benchmark_scores:
+        print(f"\n📦 Merging with previous benchmark scores...")
+        print(f"   Previous: {len(previous_benchmark_scores)} benchmarks")
+        print(f"   New: {len(benchmark_scores)} benchmarks")
+        
+        # 이전 결과를 기본으로 하고, 새 결과로 덮어씀
+        merged_scores = {**previous_benchmark_scores, **benchmark_scores}
+        benchmark_scores = merged_scores
+        
+        print(f"   Merged: {len(benchmark_scores)} benchmarks")
     
     # Results summary
     print(f"\n\n{'='*60}")

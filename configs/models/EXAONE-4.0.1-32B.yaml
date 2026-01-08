@@ -31,3 +31,5 @@ benchmarks:
   ko_arc_agi:
     extra_body:
       repetition_penalty: 1.05
+      chat_template_kwargs:
+        enable_thinking: true
