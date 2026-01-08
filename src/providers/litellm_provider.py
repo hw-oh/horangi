@@ -96,8 +96,18 @@ class LiteLLMAPI(ModelAPI):
         
         # Disable async logging to prevent "bound to different event loop" error
         litellm.disable_logging = True
+        litellm.turn_off_message_logging = True
         litellm.success_callback = []
         litellm.failure_callback = []
+        litellm._async_success_callback = []
+        litellm._async_failure_callback = []
+        
+        # Disable the logging worker completely
+        if hasattr(litellm, '_logging_worker') and litellm._logging_worker is not None:
+            try:
+                litellm._logging_worker = None
+            except Exception:
+                pass
         
     async def generate(
         self,

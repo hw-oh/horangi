@@ -1,0 +1,37 @@
+# gemma-3-1b-it (vLLM, OpenAI-Compatible)
+
+wandb:
+  run_name: "gemma-3-1b-it"
+
+metadata:
+  release_date: "2025-03-12"
+  size_category: "Small (<1B)"
+  model_size: 1000000000
+  active_params: 1000000000
+  context_window: 32768
+
+# vLLM Server Auto-Start Configuration
+vllm:
+  model_path: "google/gemma-3-1b-it"
+  tensor_parallel_size: 1
+  port: 8006
+  host: "0.0.0.0"
+  max_model_len: 32768
+  trust_remote_code: true
+  served_model_name: "gemma-3-1b-it"
+
+model:
+  name: gemma-3-1b-it
+  client: litellm
+  provider: hosted_vllm
+  api_key_env: HOSTED_VLLM_API_KEY
+
+  params:
+    max_tokens: 8192
+    temperature: 0.6
+    top_p: 0.95
+
+benchmarks:
+  bfcl:
+    use_native_tools: false
+

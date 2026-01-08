@@ -1,38 +1,36 @@
-# EXAONE-4.0.1-32B (vLLM, OpenAI-Compatible)
+# EXAONE-Deep-32B (vLLM, OpenAI-Compatible)
+# Reasoning model with thinking capability
 
 wandb:
-  run_name: "EXAONE-4.0.1-32B: enable-thinking"
+  run_name: "EXAONE-Deep-32B"
 
 metadata:
-  release_date: "2025-08-03"
+  release_date: "2025-03-18"
   size_category: "Large (30B<)"
   model_size: 32000000000
   active_params: 32000000000
-  context_window: 131072
+  context_window: 32768
 
 # vLLM Server Auto-Start Configuration
 # If present, run_eval.py will automatically start/stop vLLM server
 vllm:
-  model_path: "LGAI-EXAONE/EXAONE-4.0.1-32B"
+  model_path: "LGAI-EXAONE/EXAONE-Deep-32B"
   tensor_parallel_size: 2
-  port: 8000
+  port: 8005
   host: "0.0.0.0"
-  max_model_len: 131072
+  max_model_len: 32768
   trust_remote_code: true
-  served_model_name: "exaone-4.0.1-32b"
-  enable_auto_tool_choice: true
-  tool_call_parser: "hermes"
-  reasoning_parser: "deepseek_r1"
+  served_model_name: "exaone-deep-32b"
 
 model:
-  name: exaone-4.0.1-32b
+  name: exaone-deep-32b
   client: litellm
   provider: hosted_vllm
   # base_url은 vllm.host와 vllm.port에서 자동 생성됨
   api_key_env: HOSTED_VLLM_API_KEY
 
   params:
-    max_tokens: 65536
+    max_tokens: 16384
     temperature: 0.6
     top_p: 0.95
     extra_body:
@@ -41,9 +39,10 @@ model:
 
 benchmarks:
   bfcl:
-    use_native_tools: true
+    use_native_tools: false
   ko_arc_agi:
     extra_body:
       repetition_penalty: 1.05
       chat_template_kwargs:
         enable_thinking: true
+

@@ -13,6 +13,9 @@ from dotenv import load_dotenv
 # Load .env file (override=True ensures .env values take precedence over existing env vars)
 load_dotenv(Path(__file__).parent / ".env", override=True)
 
+# Disable LiteLLM async logging to prevent "bound to different event loop" error
+os.environ.setdefault("LITELLM_LOG", "ERROR")
+
 # Patch LLM clients EARLY for Weave token tracking (must be before clients are imported)
 try:
     from weave.integrations.anthropic import anthropic_sdk

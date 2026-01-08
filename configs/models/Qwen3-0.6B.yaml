@@ -1,31 +1,30 @@
-# Qwen3-4B-Instruct-2507 (vLLM, OpenAI-Compatible)
-# Instruct-tuned version with July 2025 update
+# Qwen3-0.6B (vLLM, OpenAI-Compatible)
 
 wandb:
-  run_name: "Qwen3-4B-Instruct-2507"
+  run_name: "Qwen3-0.6B"
 
 metadata:
-  release_date: "2025-07-15"
+  release_date: "2025-04-29"
   size_category: "Small (<10B)"
-  model_size: 4000000000
-  active_params: 4000000000
+  model_size: 600000000
+  active_params: 600000000
   context_window: 32768
 
 # vLLM Server Auto-Start Configuration
 vllm:
-  model_path: "Qwen/Qwen3-4B-Instruct-2507"
+  model_path: "Qwen/Qwen3-0.6B"
   tensor_parallel_size: 1
   port: 8005
   host: "0.0.0.0"
   max_model_len: 32768
   trust_remote_code: true
-  served_model_name: "qwen3-4b-instruct-2507"
+  served_model_name: "qwen3-0.6b"
   enable_auto_tool_choice: true
   tool_call_parser: "hermes"
   reasoning_parser: "qwen3"
 
 model:
-  name: qwen3-4b-instruct-2507
+  name: qwen3-0.6b
   client: litellm
   provider: hosted_vllm
   api_key_env: HOSTED_VLLM_API_KEY
@@ -41,3 +40,4 @@ model:
 benchmarks:
   bfcl:
     use_native_tools: true
+

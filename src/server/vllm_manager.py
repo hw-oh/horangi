@@ -2,6 +2,7 @@
 vLLM Server Manager
 
 Automatically start and stop vLLM OpenAI-compatible server for evaluation.
+Based on wandb/llm-leaderboard vllm_server.py with improvements.
 
 Usage:
     from server.vllm_manager import VLLMServerManager
@@ -27,6 +28,7 @@ Usage:
 """
 
 import atexit
+import logging
 import os
 import signal
 import socket
@@ -38,6 +40,151 @@ from pathlib import Path
 from typing import Any, Optional
 
 import httpx
+
+# Optional imports for better cleanup
+try:
+    import psutil
+    HAS_PSUTIL = True
+except ImportError:
+    HAS_PSUTIL = False
+
+try:
+    import torch
+    HAS_TORCH = True
+except ImportError:
+    HAS_TORCH = False
+
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Suppress noisy loggers
+for logger_name in ["httpx", "httpcore", "openai", "litellm"]:
+    logging.getLogger(logger_name).setLevel(logging.WARNING)
+
+
+def force_cuda_memory_cleanup() -> None:
+    """Force cleanup of CUDA memory."""
+    if not HAS_TORCH or not torch.cuda.is_available():
+        return
+    
+    try:
+        torch.cuda.empty_cache()
+        torch.cuda.ipc_collect()
+        torch.cuda.synchronize()
+        for i in range(torch.cuda.device_count()):
+            with torch.cuda.device(i):
+                torch.cuda.empty_cache()
+                torch.cuda.ipc_collect()
+    except Exception as e:
+        logger.warning(f"Error during CUDA memory cleanup: {e}")
+
+
+def wait_for_gpu_memory_release(timeout: int = 30) -> None:
+    """Wait for GPU memory to be released."""
+    if not HAS_TORCH or not torch.cuda.is_available():
+        return
+    
+    start_time = time.time()
+    while torch.cuda.memory_allocated() > 0:
+        if time.time() - start_time > timeout:
+            logger.warning(f"GPU memory not fully released after {timeout} seconds")
+            break
+        force_cuda_memory_cleanup()
+        time.sleep(1)
+
+
+def is_port_in_use(port: int) -> bool:
+    """Check if a port is in use."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.bind(('localhost', port))
+            return False
+        except socket.error:
+            return True
+
+
+def find_and_kill_process_on_port(port: int) -> bool:
+    """Find and kill process using a specific port."""
+    if not HAS_PSUTIL:
+        logger.warning("psutil not available, cannot find process on port")
+        return False
+    
+    try:
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+            try:
+                for conn in proc.connections(kind='inet'):
+                    if conn.laddr.port == port:
+                        logger.info(f"Found process using port {port}: PID {proc.pid}")
+                        kill_process_tree(proc.pid)
+                        return True
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                continue
+    except Exception as e:
+        logger.error(f"Error while finding process on port: {e}")
+    return False
+
+
+def kill_process_tree(pid: int) -> None:
+    """Kill a process and all its children."""
+    if not HAS_PSUTIL:
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+        return
+    
+    try:
+        parent = psutil.Process(pid)
+        children = parent.children(recursive=True)
+        
+        # Terminate children first
+        for child in children:
+            try:
+                child.terminate()
+            except psutil.NoSuchProcess:
+                pass
+        
+        # Wait for children to terminate
+        gone, alive = psutil.wait_procs(children, timeout=3)
+        
+        # Kill any remaining children
+        for child in alive:
+            try:
+                child.kill()
+            except psutil.NoSuchProcess:
+                pass
+        
+        # Terminate parent
+        try:
+            parent.terminate()
+            parent.wait(timeout=3)
+        except psutil.TimeoutExpired:
+            parent.kill()
+        except psutil.NoSuchProcess:
+            pass
+            
+    except psutil.NoSuchProcess:
+        pass
+    except Exception as e:
+        logger.error(f"Error killing process tree: {e}")
+
+
+def wait_for_port_release(port: int, timeout: int = 30) -> None:
+    """Wait for a port to be released."""
+    start_time = time.time()
+    while is_port_in_use(port):
+        if time.time() - start_time > timeout:
+            # Try to forcefully kill process on port
+            if find_and_kill_process_on_port(port):
+                logger.info(f"Forcefully killed process using port {port}")
+                time.sleep(2)
+                if not is_port_in_use(port):
+                    return
+            raise TimeoutError(f"Port {port} was not released after {timeout} seconds")
+        time.sleep(1)
 
 
 def _build_vllm_command(
@@ -64,6 +211,10 @@ def _build_vllm_command(
         "--tensor-parallel-size", str(tensor_parallel_size),
         "--gpu-memory-utilization", str(gpu_memory_utilization),
         "--dtype", dtype,
+        # Suppress vLLM logs to keep evaluation output clean
+        "--uvicorn-log-level", "warning",
+        "--disable-log-stats",
+        "--disable-log-requests",
     ]
     
     if served_model_name:
@@ -90,7 +241,7 @@ def _build_vllm_command(
         if isinstance(value, bool):
             if value:
                 cmd.append(arg_key)
-        else:
+        elif value is not None:
             cmd.extend([arg_key, str(value)])
     
     return cmd
@@ -101,8 +252,8 @@ class VLLMServerManager:
     Manages vLLM OpenAI-compatible server lifecycle.
     
     Starts vLLM server using subprocess and provides health check
-    to wait until server is ready. Server logs are shown during startup,
-    then suppressed after server is ready to keep evaluation logs clean.
+    to wait until server is ready. Includes proper cleanup of GPU memory
+    and port resources.
     """
     
     def __init__(
@@ -170,6 +321,7 @@ class VLLMServerManager:
         self._log_threads: list[threading.Thread] = []
         self._log_file: Optional[Path] = None
         self._log_handle = None
+        self._cleanup_registered = False
     
     @property
     def base_url(self) -> str:
@@ -180,15 +332,6 @@ class VLLMServerManager:
     def health_url(self) -> str:
         """Return the health check URL."""
         return f"http://localhost:{self.port}/health"
-    
-    def _is_port_available(self) -> bool:
-        """Check if the configured port is available."""
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            try:
-                s.bind(("localhost", self.port))
-                return True
-            except OSError:
-                return False
     
     def _check_health(self) -> bool:
         """Check if the server is healthy and ready."""
@@ -239,16 +382,27 @@ class VLLMServerManager:
         if self._started:
             raise RuntimeError("vLLM server is already running")
         
-        # Check if port is available
-        if not self._is_port_available():
-            # Port is in use, check if it's already a vLLM server
+        # Pre-startup cleanup
+        if is_port_in_use(self.port):
+            # Check if it's already a vLLM server we can use
             if self._check_health():
+                logger.info(f"vLLM server already running on port {self.port}, using existing server")
                 print(f"⚠️ vLLM server already running on port {self.port}, using existing server")
                 self._started = True
                 self._process = None  # Don't manage external server
                 return
-            else:
-                raise RuntimeError(f"Port {self.port} is already in use by another service")
+            
+            # Try to clean up the port
+            logger.info(f"Port {self.port} is in use. Attempting to clean up...")
+            print(f"⚠️ Port {self.port} is in use. Attempting to clean up...")
+            find_and_kill_process_on_port(self.port)
+            try:
+                wait_for_port_release(self.port, timeout=15)
+            except TimeoutError:
+                raise RuntimeError(f"Port {self.port} is already in use and could not be released")
+        
+        # Clean up GPU memory before starting
+        force_cuda_memory_cleanup()
         
         # Create log directory and file
         self.log_dir.mkdir(parents=True, exist_ok=True)
@@ -286,6 +440,9 @@ class VLLMServerManager:
             extra_args=self.extra_args,
         )
         
+        # Log command for debugging
+        logger.debug(f"vLLM command: {' '.join(cmd)}")
+        
         # Start server with PIPE to control output
         env = os.environ.copy()
         env["PYTHONUNBUFFERED"] = "1"
@@ -297,6 +454,11 @@ class VLLMServerManager:
             env=env,
             start_new_session=True,
         )
+        
+        # Save PID for potential recovery
+        pid_file = self.log_dir / "vllm_server.pid"
+        with open(pid_file, "w") as f:
+            f.write(str(self._process.pid))
         
         # Start log streaming threads (shows output during startup)
         self._suppress_logs = False
@@ -317,7 +479,9 @@ class VLLMServerManager:
         self._log_threads = [stdout_thread, stderr_thread]
         
         # Register cleanup on exit
-        atexit.register(self.stop)
+        if not self._cleanup_registered:
+            atexit.register(self.stop)
+            self._cleanup_registered = True
         
         # Wait for server to be ready
         self._wait_ready()
@@ -359,7 +523,7 @@ class VLLMServerManager:
         )
     
     def stop(self) -> None:
-        """Stop the vLLM server."""
+        """Stop the vLLM server and clean up resources."""
         if self._process is None:
             # External server or not started
             self._started = False
@@ -368,21 +532,23 @@ class VLLMServerManager:
         if self._process.poll() is None:  # Process is still running
             print(f"\n🛑 Stopping vLLM server...")
             
-            try:
-                # Send SIGTERM to process group for clean shutdown
-                os.killpg(os.getpgid(self._process.pid), signal.SIGTERM)
-                
-                # Wait for graceful shutdown
+            if HAS_PSUTIL:
+                # Use psutil for proper process tree cleanup
+                kill_process_tree(self._process.pid)
+            else:
+                # Fallback to process group kill
                 try:
-                    self._process.wait(timeout=15)
-                except subprocess.TimeoutExpired:
-                    print(f"   ⚠️ Force killing server...")
-                    os.killpg(os.getpgid(self._process.pid), signal.SIGKILL)
-                    self._process.wait(timeout=5)
-            except ProcessLookupError:
-                pass  # Process already terminated
-            except Exception as e:
-                print(f"   ⚠️ Error stopping server: {e}")
+                    os.killpg(os.getpgid(self._process.pid), signal.SIGTERM)
+                    try:
+                        self._process.wait(timeout=15)
+                    except subprocess.TimeoutExpired:
+                        print(f"   ⚠️ Force killing server...")
+                        os.killpg(os.getpgid(self._process.pid), signal.SIGKILL)
+                        self._process.wait(timeout=5)
+                except ProcessLookupError:
+                    pass
+                except Exception as e:
+                    print(f"   ⚠️ Error stopping server: {e}")
             
             print(f"✅ vLLM server stopped")
         
@@ -394,15 +560,40 @@ class VLLMServerManager:
                 pass
             self._log_handle = None
         
+        # Clean up PID file
+        pid_file = self.log_dir / "vllm_server.pid"
+        if pid_file.exists():
+            try:
+                pid_file.unlink()
+            except Exception:
+                pass
+        
         self._process = None
         self._started = False
         self._suppress_logs = True
         
-        # Unregister cleanup
+        # Wait for port to be released
         try:
-            atexit.unregister(self.stop)
-        except Exception:
-            pass
+            wait_for_port_release(self.port, timeout=15)
+        except TimeoutError:
+            logger.warning(f"Port {self.port} could not be released")
+        
+        # Clean up GPU memory
+        logger.info("Cleaning up GPU memory...")
+        force_cuda_memory_cleanup()
+        wait_for_gpu_memory_release(timeout=30)
+        logger.info("GPU memory cleanup completed.")
+        
+        # Brief wait for cleanup to complete
+        time.sleep(2)
+        
+        # Unregister cleanup
+        if self._cleanup_registered:
+            try:
+                atexit.unregister(self.stop)
+                self._cleanup_registered = False
+            except Exception:
+                pass
     
     def __enter__(self) -> "VLLMServerManager":
         """Context manager entry - start the server."""

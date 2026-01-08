@@ -1,0 +1,43 @@
+# EXAONE-Deep-2.4B (vLLM, OpenAI-Compatible)
+# Reasoning model with thinking capability
+
+wandb:
+  run_name: "EXAONE-Deep-2.4B"
+
+metadata:
+  release_date: "2025-03-18"
+  size_category: "Small (<10B)"
+  model_size: 2400000000
+  active_params: 2400000000
+  context_window: 32768
+
+# vLLM Server Auto-Start Configuration
+# If present, run_eval.py will automatically start/stop vLLM server
+vllm:
+  model_path: "LGAI-EXAONE/EXAONE-Deep-2.4B"
+  tensor_parallel_size: 1
+  port: 8005
+  host: "0.0.0.0"
+  max_model_len: 32768
+  trust_remote_code: true
+  served_model_name: "exaone-deep-2.4b"
+
+model:
+  name: exaone-deep-2.4b
+  client: litellm
+  provider: hosted_vllm
+  # base_url은 vllm.host와 vllm.port에서 자동 생성됨
+  api_key_env: HOSTED_VLLM_API_KEY
+
+  params:
+    max_tokens: 16384
+    temperature: 0.6
+    top_p: 0.95
+
+benchmarks:
+  bfcl:
+    use_native_tools: false
+  ko_arc_agi:
+    extra_body:
+      repetition_penalty: 1.05
+
