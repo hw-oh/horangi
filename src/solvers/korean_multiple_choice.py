@@ -10,8 +10,9 @@ from inspect_ai._util.answer import answer_character, answer_index
 from inspect_ai.solver import Solver, solver, TaskState, multiple_choice
 
 
-# 기본 한국어 객관식 템플릿
-DEFAULT_KOREAN_TEMPLATE = """다음은 객관식 문제입니다. 제시된 지문과 질문, 그리고 선택지를 주의 깊게 읽고, 마지막에 "정답: X" 형식으로 답하세요. (X는 {letters} 중 하나)
+DEFAULT_KOREAN_TEMPLATE = """제시된 지문과 질문, 그리고 선택지를 주의 깊게 읽고 답하세요. 반드시 마지막 줄에 "정답: X" 형식으로만 답하세요. (X는 {letters} 중 하나) 마크다운, 괄호, 추가 설명 없이 알파벳만 작성하세요.
+올바른 예시: 정답: A
+잘못된 예시: 정답: **A**, 정답: A), 정답: (A), 정답: A번
 
 {question}
 
