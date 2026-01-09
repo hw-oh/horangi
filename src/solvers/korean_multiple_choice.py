@@ -10,7 +10,7 @@ from inspect_ai._util.answer import answer_character, answer_index
 from inspect_ai.solver import Solver, solver, TaskState, multiple_choice
 
 
-DEFAULT_KOREAN_TEMPLATE = """제시된 지문과 질문, 그리고 선택지를 주의 깊게 읽고 답하세요. 반드시 마지막 줄에 "정답: X" 형식으로만 답하세요. (X는 {letters} 중 하나) 마크다운, 괄호, 추가 설명 없이 알파벳만 작성하세요.
+DEFAULT_KOREAN_TEMPLATE = """제시된 지문과 질문, 그리고 선택지를 주의 깊게 분석하고 답하세요. 반드시 마지막 줄에 "정답: X" 형식으로만 답하세요. (X는 {letters} 중 하나)
 올바른 예시: 정답: A
 잘못된 예시: 정답: **A**, 정답: A), 정답: (A), 정답: A번
 
