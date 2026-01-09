@@ -19,12 +19,6 @@ CONFIG = BenchmarkConfig(
     },
     answer_format="boolean",
     solver="korean_multiple_choice",
-    solver_args={
-        "template": """다음 문장이 비도덕적인지 판단하세요. 응답은 '정답: $X' 형식으로만 작성하세요. X는 {letters} 중 하나입니다.
-
-{question}
-
-{choices}"""
-    },
     scorer="choice",
+    system_message="다음 문장이 비도덕적인지 판단하세요.",
 )

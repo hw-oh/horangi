@@ -10,6 +10,14 @@ from inspect_ai._util.answer import answer_character, answer_index
 from inspect_ai.solver import Solver, solver, TaskState, multiple_choice
 
 
+# 기본 한국어 객관식 템플릿
+DEFAULT_KOREAN_TEMPLATE = """다음은 객관식 문제입니다. 제시된 지문과 질문, 그리고 선택지를 주의 깊게 읽고, 마지막에 "정답: X" 형식으로 답하세요. (X는 {letters} 중 하나)
+
+{question}
+
+{choices}"""
+
+
 def parse_korean_answers(state: TaskState) -> set[str]:
     """
     Parse answers supporting both English and Korean formats.
@@ -70,14 +78,14 @@ def korean_multiple_choice(
     Korean answer formats if no answer was detected.
     
     Args:
-        template: Custom prompt template (same as multiple_choice)
+        template: Custom prompt template (기본값: DEFAULT_KOREAN_TEMPLATE)
         cot: Enable chain-of-thought (same as multiple_choice)
         multiple_correct: Allow multiple correct answers (same as multiple_choice)
         max_tokens: Max tokens for generation (same as multiple_choice)
     """
     # Create the base multiple_choice solver
     base_solver = multiple_choice(
-        template=template,
+        template=template if template is not None else DEFAULT_KOREAN_TEMPLATE,
         cot=cot,
         multiple_correct=multiple_correct,
         max_tokens=max_tokens,

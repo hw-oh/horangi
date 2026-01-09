@@ -40,9 +40,14 @@ def mtbench_solver() -> Solver:
         
         # Continue if Turn 2 exists
         if turn2:
-            # Add to conversation history
-            state.messages.append(ChatMessageAssistant(content=response_turn1))
-            state.messages.append(ChatMessageUser(content=turn2))
+            # Build Turn 2 conversation history
+            # Note: generate() may have already added assistant message to state.messages
+            # So we rebuild the message list to ensure correct alternation
+            state.messages = [
+                ChatMessageUser(content=turn1),
+                ChatMessageAssistant(content=response_turn1),
+                ChatMessageUser(content=turn2)
+            ]
             
             # Generate Turn 2
             state = await generate(state)
