@@ -39,6 +39,7 @@ dependencies = [
     "transformers>=4.48.0",
     "huggingface-hub>=0.28.0,<1.0",
     "numpy<2.3",  # numba 호환성
+    "pydantic>=2.0.0",
 ]
 
 [project.scripts]

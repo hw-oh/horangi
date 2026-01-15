@@ -1,24 +1,34 @@
-# Kanana 2 30B A3B Thinking (vLLM External Endpoint)
-#
-# vLLM server is already running on RunPod.
-# Horangi connects via OpenAI-compatible HTTP endpoint.
-# Horangi does NOT manage vLLM lifecycle.
+# Kanana 2 30B A3B Thinking (vLLM, OpenAI-Compatible)
 
 wandb:
   run_name: "kanana-2-30b-a3b-thinking"
 
 metadata:
-  release_date: 2025-12-19
+  release_date: "2025-12-19"
   size_category: "Large (30B<)"
-  model_size: 30000000000          # Kanana 2 30B
-  active_params: 30000000000        # 30B
+  model_size: 30000000000
+  active_params: 30000000000
   context_window: 32768
+
+# vLLM Server Auto-Start Configuration
+# If present, run_eval.py will automatically start/stop vLLM server
+vllm:
+  model_path: "kakaocorp/kanana-2-30b-a3b-thinking"
+  tensor_parallel_size: 2
+  port: 8000
+  host: "0.0.0.0"
+  max_model_len: 32768
+  trust_remote_code: true
+  served_model_name: "kanana-2-30b-a3b-thinking"
+  enable_auto_tool_choice: true
+  tool_call_parser: "hermes"
+  reasoning_parser: "deepseek_r1"
 
 model:
   name: kanana-2-30b-a3b-thinking
   client: litellm
   provider: hosted_vllm
-  base_url: http://localhost:8000/v1
+  # base_url은 vllm.host와 vllm.port에서 자동 생성됨
   api_key_env: HOSTED_VLLM_API_KEY
 
   params:

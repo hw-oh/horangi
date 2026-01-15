@@ -15,7 +15,7 @@ metadata:
 vllm:
   model_path: "LGAI-EXAONE/EXAONE-4.0-32B"
   tensor_parallel_size: 2
-  port: 8000
+  port: 8002
   host: "0.0.0.0"
   max_model_len: 32768
   trust_remote_code: true
@@ -28,7 +28,6 @@ model:
   name: exaone-4.0-32b
   client: litellm
   provider: hosted_vllm
-  base_url: http://localhost:8000/v1
   api_key_env: HOSTED_VLLM_API_KEY
 
   params:

@@ -12,7 +12,18 @@
 from core.loaders import load_weave_data, load_jsonl_data
 from core.answer_format import ANSWER_FORMAT
 from core.benchmark_config import BenchmarkConfig
-from core.config_loader import ConfigLoader, get_config, load_config
+from core.config_loader import ConfigLoader, get_config, load_config, deep_merge
+from core.types import (
+    BenchmarkConfigDict,
+    ModelConfigDict,
+    ModelParams,
+    ModelMetadata,
+    BenchmarkOverrides,
+    VLLMConfig,
+    BenchmarkScoreInfo,
+)
+from core.logging import get_logger, configure_logging
+from core.validation import validate_model_config, validate_model_config_safe
 
 
 def create_benchmark(*args, **kwargs):
@@ -37,4 +48,19 @@ __all__ = [
     "ConfigLoader",
     "get_config",
     "load_config",
+    "deep_merge",
+    # Type definitions
+    "BenchmarkConfigDict",
+    "ModelConfigDict",
+    "ModelParams",
+    "ModelMetadata",
+    "BenchmarkOverrides",
+    "VLLMConfig",
+    "BenchmarkScoreInfo",
+    # Logging
+    "get_logger",
+    "configure_logging",
+    # Validation
+    "validate_model_config",
+    "validate_model_config_safe",
 ]

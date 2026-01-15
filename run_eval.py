@@ -4,7 +4,6 @@ import argparse
 import locale
 import os
 import sys
-from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 
@@ -15,6 +14,13 @@ load_dotenv(Path(__file__).parent / ".env", override=True)
 
 # Disable LiteLLM async logging to prevent "bound to different event loop" error
 os.environ.setdefault("LITELLM_LOG", "ERROR")
+
+# Disable LiteLLM async logging worker (fixes event loop binding issue)
+try:
+    import litellm
+    litellm.disable_async_logging = True
+except ImportError:
+    pass
 
 # Patch LLM clients EARLY for Weave token tracking (must be before clients are imported)
 try:
@@ -44,8 +50,12 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 import pandas as pd
 import wandb
 from inspect_ai import eval as inspect_eval
-from core.config_loader import get_config
+from core.config_loader import get_config, deep_merge
+from core.logging import get_logger, configure_logging
 from server.vllm_manager import VLLMServerManager
+
+# Initialize logger
+logger = get_logger(__name__)
 
 # Register custom model providers
 try:
@@ -55,16 +65,16 @@ except ImportError:
 
 # All benchmarks list (active ones only)
 ALL_BENCHMARKS = [
+    "bfcl",
+    "ko_balt_700_syntax",
+    "ko_balt_700_semantic",
+    "ko_mtbench",
     "ko_arc_agi",
     "kmmlu_pro",
     "ko_hle",
     "ko_hellaswag",
     "ko_aime2025",
     "ifeval_ko",
-    # ko_balt_700: 구문해석/의미해석 분리 실행
-    "ko_balt_700_syntax",
-    "ko_balt_700_semantic",
-    # haerae_bench_v1: 의미해석(RC)/일반지식(wo_RC) 분리 실행
     "haerae_bench_v1_rc",
     "haerae_bench_v1_wo_rc",
     "kmmlu",
@@ -74,11 +84,8 @@ ALL_BENCHMARKS = [
     "hrm8k",
     "korean_hate_speech",
     "kobbq",
-    "ko_mtbench",
     "ko_hallulens_wikiqa",
-    # "ko_hallulens_longwiki",
     "ko_hallulens_nonexistent",
-    "bfcl",
     "swebench_verified_official_80",
 ]
 
@@ -185,14 +192,14 @@ def get_previous_benchmark_scores(entity: str, project: str, run_id: str) -> dic
         history = run.history(keys=["benchmark_detail_table"])
         
         if history.empty or "benchmark_detail_table" not in history.columns:
-            print(f"⚠️ benchmark_detail_table not found in run {run_id}")
+            logger.warning(f"benchmark_detail_table not found in run {run_id}")
             return {}
         
         # 마지막 로깅된 테이블 가져오기
         table_data = history["benchmark_detail_table"].dropna().iloc[-1]
         
         if table_data is None:
-            print(f"⚠️ benchmark_detail_table is empty in run {run_id}")
+            logger.warning(f"benchmark_detail_table is empty in run {run_id}")
             return {}
         
         # W&B Table JSON에서 데이터 추출
@@ -232,13 +239,12 @@ def get_previous_benchmark_scores(entity: str, project: str, run_id: str) -> dic
                     benchmark_name = key.replace("_score", "")
                     benchmark_scores[benchmark_name] = {"score": value, "details": {}}
         
-        print(f"✅ Loaded {len(benchmark_scores)} benchmark scores from previous run")
+        logger.info(f"Loaded {len(benchmark_scores)} benchmark scores from previous run")
         return benchmark_scores
-        
+
     except Exception as e:
-        print(f"⚠️ Failed to load previous benchmark scores: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.warning(f"Failed to load previous benchmark scores: {e}")
+        logger.debug("Traceback:", exc_info=True)
         return {}
 
 
@@ -302,26 +308,6 @@ def get_inspect_model(config_name: str, benchmark: str | None = None) -> tuple[s
     os.environ["INSPECT_WANDB_MODEL_NAME"] = model_name
     
     return inspect_model, model_args, base_url
-
-
-def deep_merge(base: dict, override: dict) -> dict:
-    """
-    Deep merge two dicts. Override values take precedence.
-    
-    Args:
-        base: Base dictionary
-        override: Override dictionary (values take precedence)
-    
-    Returns:
-        Merged dictionary
-    """
-    result = deepcopy(base)
-    for key, value in override.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = deep_merge(result[key], value)
-        else:
-            result[key] = deepcopy(value)
-    return result
 
 
 def get_model_generate_config(config_name: str, benchmark: str) -> dict:
@@ -396,8 +382,22 @@ def run_benchmark(
         # Get task function
         task_fn = get_task_function(benchmark)
         
-        # Create task with limit
-        task = task_fn(limit=limit) if limit else task_fn()
+        # Get benchmark-specific config (including use_native_tools)
+        config = get_config()
+        benchmark_config = config.get_benchmark_config(config_name, benchmark)
+        
+        # Build task kwargs
+        task_kwargs = {}
+        if limit:
+            task_kwargs["limit"] = limit
+        
+        # Pass use_native_tools if specified in config (for BFCL, etc.)
+        use_native_tools = benchmark_config.get("use_native_tools")
+        if use_native_tools is not None:
+            task_kwargs["use_native_tools"] = use_native_tools
+        
+        # Create task with kwargs
+        task = task_fn(**task_kwargs)
         
         # Get model info
         inspect_model, model_args, base_url = get_inspect_model(config_name, benchmark)
@@ -569,10 +569,10 @@ Examples:
     project = os.environ.get("WANDB_PROJECT", "")
     
     if not entity or not project:
-        print("❌ WANDB_ENTITY and WANDB_PROJECT environment variables are required for W&B logging.")
-        print("   Add the following to your .env file:")
-        print("     WANDB_ENTITY=your-entity")
-        print("     WANDB_PROJECT=your-project")
+        logger.error("WANDB_ENTITY and WANDB_PROJECT environment variables are required for W&B logging.")
+        logger.error("Add the following to your .env file:")
+        logger.error("  WANDB_ENTITY=your-entity")
+        logger.error("  WANDB_PROJECT=your-project")
         sys.exit(1)
     
     config = get_config()
@@ -585,8 +585,8 @@ Examples:
         # Validate
         invalid = [b for b in benchmarks if b not in ALL_BENCHMARKS]
         if invalid:
-            print(f"❌ Unknown benchmarks: {invalid}")
-            print(f"   Available: {ALL_BENCHMARKS}")
+            logger.error(f"Unknown benchmarks: {invalid}")
+            logger.error(f"Available: {ALL_BENCHMARKS}")
             sys.exit(1)
     else:
         benchmarks = ALL_BENCHMARKS
@@ -594,8 +594,8 @@ Examples:
     # Load model config (configs/models/<name>.yaml)
     model_cfg = config.get_model(args.config)
     if not model_cfg:
-        print(f"❌ Model configuration not found: {args.config}")
-        print("   Check if YAML file exists in configs/models/ directory.")
+        logger.error(f"Model configuration not found: {args.config}")
+        logger.error("Check if YAML file exists in configs/models/ directory.")
         sys.exit(1)
 
     # Get model name from new config structure
@@ -612,9 +612,9 @@ Examples:
     vllm_server = None
     
     if vllm_config:
-        print(f"\n🔧 vLLM server configuration detected")
-        print(f"   Model: {vllm_config.get('model_path')}")
-        print(f"   Will auto-start server before evaluation")
+        logger.info("vLLM server configuration detected")
+        logger.info(f"  Model: {vllm_config.get('model_path')}")
+        logger.info("  Will auto-start server before evaluation")
         tags.append("vllm")
     
     # 이전 벤치마크 결과 (resume 시 사용)
@@ -622,7 +622,7 @@ Examples:
     
     if args.resume:
         # Resume 전에 이전 run의 벤치마크 결과 불러오기
-        print(f"\n📥 Loading previous benchmark scores from run {args.resume}...")
+        logger.info(f"Loading previous benchmark scores from run {args.resume}...")
         previous_benchmark_scores = get_previous_benchmark_scores(entity, project, args.resume)
         
         # Resume existing run
@@ -632,7 +632,7 @@ Examples:
             id=args.resume,
             resume="must",  # 반드시 기존 run이어야 함
         )
-        print(f"✅ W&B run resumed: {wandb_run.url}")
+        logger.info(f"W&B run resumed: {wandb_run.url}")
     else:
         # Create new run
         wandb_run = wandb.init(
@@ -649,12 +649,12 @@ Examples:
                 "benchmarks": benchmarks,
             },
         )
-        print(f"✅ W&B run started: {wandb_run.url}")
-    
+        logger.info(f"W&B run started: {wandb_run.url}")
+
     # Note: Weave is initialized by inspect_wandb hooks automatically
     # Don't call weave.init() here as it conflicts with the hooks' initialization
-    print(f"✅ Weave will be initialized by inspect_wandb hooks: {entity}/{project}")
-    print("✅ Anthropic client patched for Weave token tracking (early patch)")
+    logger.info(f"Weave will be initialized by inspect_wandb hooks: {entity}/{project}")
+    logger.debug("Anthropic client patched for Weave token tracking (early patch)")
     
     
     print(f"\n🐯 Horangi Benchmark Runner")
@@ -679,7 +679,7 @@ Examples:
             # This ensures the model connects to the auto-started server
             os.environ["HOSTED_VLLM_API_BASE"] = vllm_server.base_url
         except Exception as e:
-            print(f"❌ Failed to start vLLM server: {e}")
+            logger.error(f"Failed to start vLLM server: {e}")
             if wandb_run is not None:
                 wandb_run.finish(exit_code=1)
             sys.exit(1)
@@ -709,15 +709,15 @@ Examples:
     
     # Resume인 경우 이전 결과와 merge (새 결과가 우선)
     if args.resume and previous_benchmark_scores:
-        print(f"\n📦 Merging with previous benchmark scores...")
-        print(f"   Previous: {len(previous_benchmark_scores)} benchmarks")
-        print(f"   New: {len(benchmark_scores)} benchmarks")
-        
+        logger.info("Merging with previous benchmark scores...")
+        logger.info(f"  Previous: {len(previous_benchmark_scores)} benchmarks")
+        logger.info(f"  New: {len(benchmark_scores)} benchmarks")
+
         # 이전 결과를 기본으로 하고, 새 결과로 덮어씀
         merged_scores = {**previous_benchmark_scores, **benchmark_scores}
         benchmark_scores = merged_scores
-        
-        print(f"   Merged: {len(benchmark_scores)} benchmarks")
+
+        logger.info(f"  Merged: {len(benchmark_scores)} benchmarks")
     
     # Results summary
     print(f"\n\n{'='*60}")
@@ -783,7 +783,7 @@ Examples:
             if leaderboard_url:
                 print(f"\n🏆 Leaderboard URL: {leaderboard_url}")
         except Exception as e:
-            print(f"⚠️ Weave Leaderboard creation failed: {e}")
+            logger.warning(f"Weave Leaderboard creation failed: {e}")
     
     # Log W&B Leaderboard Tables (if there are successful benchmarks)
     if benchmark_scores and wandb_run is not None:
@@ -804,9 +804,8 @@ Examples:
                 metadata=model_metadata,
             )
         except Exception as e:
-            import traceback
-            print(f"⚠️ W&B Leaderboard table creation failed: {e}")
-            traceback.print_exc()
+            logger.warning(f"W&B Leaderboard table creation failed: {e}")
+            logger.debug("Traceback:", exc_info=True)
     
     # End W&B run
     if wandb_run is not None:

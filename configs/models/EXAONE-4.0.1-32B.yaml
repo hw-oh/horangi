@@ -15,7 +15,7 @@ metadata:
 vllm:
   model_path: "LGAI-EXAONE/EXAONE-4.0.1-32B"
   tensor_parallel_size: 2
-  port: 8000
+  port: 8002
   host: "0.0.0.0"
   max_model_len: 131072
   trust_remote_code: true
