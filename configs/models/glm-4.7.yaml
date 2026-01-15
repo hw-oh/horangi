@@ -1,19 +1,19 @@
 # =============================================================================
-# GLM-4.5-AIR (OpenRouter)
-# https://huggingface.co/zai-org/GLM-4.5-AIR
+# GLM-4.7 (OpenRouter)
+# https://huggingface.co/zai-org/GLM-4.7
 # =============================================================================
 
 # W&B Settings
 wandb:
-  run_name: "glm-4.5-air"
+  run_name: "glm-4.7"
 
 # Model Metadata
 metadata:
-  release_date: "2025-08-05"
+  release_date: "2025-12-22"
   size_category: "Large (30B<)"
-  model_size: 106000000000             # 106B total parameters (MoE)
-  active_params: 12000000000           # 12B active parameters (MoE)
-  context_window: 131072
+  model_size: 358000000000             # 358B total parameters (MoE)
+  active_params: 32000000000           # 32B active parameters (MoE)
+  context_window: 202752
 
 # =============================================================================
 # Model Configuration
@@ -21,7 +21,7 @@ metadata:
 
 model:
   # OpenRouter 모델명
-  name: z-ai/glm-4.5-air
+  name: z-ai/glm-4.7
 
   # API Client
   client: litellm
@@ -34,7 +34,7 @@ model:
 
   # Generation Parameters
   params:
-    max_tokens: 65536
+    max_tokens: 131072
     temperature: 1.0
     top_p: 0.95
     extra_body:

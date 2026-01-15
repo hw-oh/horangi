@@ -1,0 +1,77 @@
+# =============================================================================
+# Model Configuration Template - vLLM Version
+# 
+# Use this template for local models served via vLLM.
+# run_eval.py will automatically start/stop vLLM server.
+# Filename: <model-name>.yaml (e.g., EXAONE-4.0-32B.yaml, Qwen3-32B.yaml)
+# =============================================================================
+
+# W&B Settings
+wandb:
+  run_name: "Model-Name"
+
+# Model Metadata
+metadata:
+  release_date: "YYYY-MM-DD"
+  size_category: "Large (30B<)"    # "Small (<1B)", "Small (1B-7B)", "Medium (7B-30B)", "Large (30B<)"
+  model_size: 32000000000          # Total parameters
+  active_params: 32000000000       # Active parameters (for MoE, use active params)
+  context_window: 32768
+
+# =============================================================================
+# vLLM Server Auto-Start Configuration
+# =============================================================================
+# If present, run_eval.py will automatically start vLLM server before evaluation
+# and stop it after completion.
+
+vllm:
+  model_path: "org/model-name"     # HuggingFace model ID or local path
+  tensor_parallel_size: 2          # Number of GPUs for tensor parallelism
+  port: 8000
+  host: "0.0.0.0"
+  max_model_len: 32768             # Maximum context length to use
+  trust_remote_code: true
+  served_model_name: "model-name"  # Name exposed via API
+  
+  # Tool Calling (optional - add if model supports function calling)
+  enable_auto_tool_choice: true
+  tool_call_parser: "hermes"       # hermes, llama3_json, etc.
+  
+  # Reasoning/Thinking (optional - add for thinking models)
+  reasoning_parser: "deepseek_r1"
+
+# =============================================================================
+# Model Configuration
+# =============================================================================
+
+model:
+  name: model-name                 # Should match vllm.served_model_name
+  client: litellm
+  provider: hosted_vllm
+  # base_url은 vllm.host와 vllm.port에서 자동 생성됨
+  api_key_env: HOSTED_VLLM_API_KEY
+
+  params:
+    max_tokens: 16384
+    temperature: 0.6
+    top_p: 0.95
+    
+    # For thinking/reasoning models, add:
+    extra_body:
+      chat_template_kwargs:
+        enable_thinking: true
+
+# =============================================================================
+# Benchmark-specific Overrides (optional)
+# =============================================================================
+
+benchmarks:
+  bfcl:
+    use_native_tools: false        # Text-based recommended for open-source models
+  
+  # For thinking models:
+  # ko_arc_agi:
+  #   extra_body:
+  #     repetition_penalty: 1.05
+  #     chat_template_kwargs:
+  #       enable_thinking: true

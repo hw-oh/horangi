@@ -211,24 +211,39 @@ def create_sample(
 # Scorer/Solver (for benchmarks without base)
 # =============================================================================
 
-def get_scorer_by_name(scorer_name: str) -> list[Scorer]:
+def get_scorer_by_name(scorer_name: str, judge_model: str | None = None) -> list[Scorer]:
     """
     Create Scorer instance from scorer name
-    
-    1. Check built-in scorers first (choice, match, etc.)
-    2. Then look in custom scorers (grid_match, etc.)
+
+    Args:
+        scorer_name: Name of the scorer
+        judge_model: Model to use for judge-based scorers (e.g., "openai/gpt-4o-mini")
+
+    Returns:
+        List of Scorer instances
+
+    Notes:
+        1. Check built-in scorers first (choice, match, etc.)
+        2. Then look in custom scorers (grid_match, etc.)
     """
+    from core.config_loader import get_config
+
     # Built-in scorers
     from scorers import hallulens_qa_scorer, refusal_scorer
     from scorers.swebench_server_scorer import swebench_server_scorer
     from inspect_evals.squad.squad import f1 as squad_f1, exact as squad_exact
-    
+
+    # Get judge model from config if not provided
+    if judge_model is None:
+        config = get_config()
+        judge_model = config.benchmarks.get("judge_model", "openai/gpt-4o-mini")
+
     builtin_scorers = {
         "choice": lambda: [choice()],
         "match": lambda: [match()],
         "match_numeric": lambda: [match(numeric=True)],
-        "model_graded_qa": lambda: [model_graded_qa(model="openai/gpt-4o-mini")],
-        "hle_grader": lambda: [hle_grader(judge_model="openai/gpt-4o-mini")],
+        "model_graded_qa": lambda: [model_graded_qa(model=judge_model)],
+        "hle_grader": lambda: [hle_grader(judge_model=judge_model)],
         # HalluLens scorers
         "hallulens_qa_scorer": lambda: [hallulens_qa_scorer()],
         "refusal_scorer": lambda: [refusal_scorer()],
@@ -241,7 +256,7 @@ def get_scorer_by_name(scorer_name: str) -> list[Scorer]:
     }
     if scorer_name in builtin_scorers:
         return builtin_scorers[scorer_name]()
-    
+
     # Custom scorers
     try:
         import scorers as custom_scorers
@@ -249,7 +264,7 @@ def get_scorer_by_name(scorer_name: str) -> list[Scorer]:
             return [getattr(custom_scorers, scorer_name)()]
     except ImportError:
         pass
-    
+
     raise ValueError(f"Unknown scorer: {scorer_name}. Available: {list(builtin_scorers.keys())}")
 
 

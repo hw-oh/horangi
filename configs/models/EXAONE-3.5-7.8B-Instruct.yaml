@@ -15,11 +15,13 @@ metadata:
 vllm:
   model_path: "LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct"
   tensor_parallel_size: 1
-  port: 8003
+  port: 8002
   host: "0.0.0.0"
   max_model_len: 32768
   trust_remote_code: true
   served_model_name: "exaone-3.5-7.8b-instruct"
+  enable_auto_tool_choice: true
+  tool_call_parser: "hermes"
 
 model:
   name: exaone-3.5-7.8b-instruct

@@ -25,7 +25,7 @@ model:
 
 benchmarks:
   bfcl:
-    use_native_tools: true
+    use_native_tools: false
     max_tokens: 32000
   swebench_verified_official_80:
     max_tokens: 64000

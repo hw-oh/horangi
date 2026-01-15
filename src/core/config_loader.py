@@ -53,21 +53,39 @@ from pathlib import Path
 from typing import Any, Optional
 import yaml
 
+from core.types import (
+    BaseConfigDict,
+    ModelConfigDict,
+    ModelParams,
+    ModelMetadata,
+    BenchmarkOverrides,
+    VLLMConfig,
+)
 
-def _deep_merge(base: dict, override: dict) -> dict:
+# Flag to enable strict config validation
+ENABLE_STRICT_VALIDATION = os.environ.get("HORANGI_STRICT_VALIDATION", "").lower() == "true"
+
+
+def deep_merge(base: dict, override: dict) -> dict:
     """
-    Deep merge two dictionaries
-    
-    override takes precedence, nested dicts are recursively merged
+    Deep merge two dictionaries.
+
+    Args:
+        base: Base dictionary
+        override: Override dictionary (values take precedence)
+
+    Returns:
+        Merged dictionary with override values taking precedence.
+        Nested dicts are recursively merged.
     """
     result = base.copy()
-    
+
     for key, value in override.items():
         if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = _deep_merge(result[key], value)
+            result[key] = deep_merge(result[key], value)
         else:
             result[key] = value
-    
+
     return result
 
 
@@ -138,33 +156,44 @@ class ConfigLoader:
         """Test mode flag"""
         return self.base.get("testmode", False)
     
-    def get_model(self, model_name: str) -> dict:
+    def get_model(self, model_name: str, validate: bool | None = None) -> ModelConfigDict:
         """
-        Load model configuration
-        
+        Load model configuration.
+
         Args:
             model_name: Model name (e.g., "gpt-4o", "claude-3-5-sonnet")
                        Specify without file extension
-        
+            validate: Whether to validate config with pydantic.
+                     If None, uses HORANGI_STRICT_VALIDATION env var.
+
         Returns:
             Model configuration dictionary
+
+        Raises:
+            pydantic.ValidationError: If validation is enabled and config is invalid
         """
         if model_name in self._model_configs:
             return self._model_configs[model_name]
-        
+
         # Normalize filename: openai/gpt-4o -> gpt-4o
         # If slash exists, use only the last part
         if "/" in model_name:
             file_name = model_name.split("/")[-1]
         else:
             file_name = model_name
-        
+
         model_path = self.models_dir / f"{file_name}.yaml"
-        model_config = self._load_yaml(model_path)
-        
+        model_config: ModelConfigDict = self._load_yaml(model_path)
+
+        # Optionally validate config
+        should_validate = validate if validate is not None else ENABLE_STRICT_VALIDATION
+        if should_validate and model_config:
+            from core.validation import validate_model_config
+            validate_model_config(model_config)
+
         # Cache
         self._model_configs[model_name] = model_config
-        
+
         return model_config
     
     def list_models(self) -> list[str]:
@@ -204,7 +233,7 @@ class ConfigLoader:
             # Merge model.params with base defaults (for new structure)
             model_params = model_config.get("model", {}).get("params", {})
             if model_params:
-                config["defaults"] = _deep_merge(
+                config["defaults"] = deep_merge(
                     config.get("defaults", {}),
                     model_params
                 )
@@ -311,12 +340,12 @@ class ConfigLoader:
             return os.environ.get(env_name)
         return None
     
-    def get_model_params(self, config_name: str) -> dict:
+    def get_model_params(self, config_name: str) -> ModelParams:
         """
-        Get model generation parameters
-        
+        Get model generation parameters.
+
         New structure: model.params
-        
+
         Returns:
             Parameters dict (temperature, max_tokens, etc.)
         """
@@ -337,24 +366,24 @@ class ConfigLoader:
         wandb_section = model_config.get("wandb", {})
         return wandb_section.get("run_name")
     
-    def get_metadata(self, config_name: str) -> dict:
+    def get_metadata(self, config_name: str) -> ModelMetadata:
         """
-        Get model metadata
-        
+        Get model metadata.
+
         New structure: metadata
-        
+
         Returns:
             Metadata dict (context_window, max_output_tokens, etc.)
         """
         model_config = self.get_model(config_name)
         return model_config.get("metadata", {})
     
-    def get_benchmark_config(self, config_name: str, benchmark: str) -> dict:
+    def get_benchmark_config(self, config_name: str, benchmark: str) -> BenchmarkOverrides:
         """
-        Get benchmark-specific configuration
-        
+        Get benchmark-specific configuration.
+
         New structure: benchmarks.<benchmark_name>
-        
+
         Returns:
             Benchmark config dict (use_native_tools, max_tokens, etc.)
         """
@@ -430,30 +459,21 @@ class ConfigLoader:
     # vLLM Server Configuration
     # =========================================================================
     
-    def get_vllm_config(self, config_name: str) -> Optional[dict[str, Any]]:
+    def get_vllm_config(self, config_name: str) -> VLLMConfig | None:
         """
-        Get vLLM server configuration
-        
+        Get vLLM server configuration.
+
         New structure: vllm section (top-level)
-        
+
         Returns:
             vLLM config dict if present, None otherwise
-            {
-                "model_path": "LGAI-EXAONE/EXAONE-4.0.1-32B-Instruct",
-                "tensor_parallel_size": 4,
-                "gpu_memory_utilization": 0.9,
-                "port": 8000,
-                "max_model_len": 32768,
-                "trust_remote_code": True,
-                ...
-            }
         """
         model_config = self.get_model(config_name)
         vllm_section = model_config.get("vllm")
-        
+
         if not vllm_section:
             return None
-        
+
         return vllm_section
     
     def has_vllm_config(self, config_name: str) -> bool:

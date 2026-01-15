@@ -1,0 +1,54 @@
+# =============================================================================
+# Qwen3 235B A22B Thinking 2507 (OpenRouter)
+# https://openrouter.ai/qwen/qwen3-235b-a22b-thinking-2507
+# https://huggingface.co/Qwen/Qwen3-235B-A22B-Thinking-2507
+# =============================================================================
+
+# W&B Settings
+wandb:
+  run_name: "qwen3-235b-a22b-thinking-2507"
+
+# Model Metadata
+metadata:
+  release_date: "2025-07-25"
+  size_category: "Large (30B<)"
+  model_size: 235000000000         # 235B total parameters
+  active_params: 22000000000       # 22B active parameters (MoE)
+  context_window: 262144           # 256K native context
+  max_output_tokens: 81920         # 권장: 32K~81K for complex reasoning
+
+# =============================================================================
+# Model Configuration
+# =============================================================================
+
+model:
+  # OpenRouter 모델명
+  name: qwen/qwen3-235b-a22b-thinking-2507
+
+  # API Client
+  client: litellm
+
+  # Model Provider
+  provider: openrouter
+
+  # Environment variable name for API key
+  api_key_env: OPENROUTER_API_KEY
+
+  # Generation Parameters (HuggingFace 권장값)
+  params:
+    max_tokens: 32768              # 복잡한 문제: 81920까지 가능
+    temperature: 0.6               # 권장: 0.6
+    top_p: 0.95                    # 권장: 0.95
+    top_k: 20
+    min_p: 0.0
+    # presence_penalty: 0.5        # 반복 방지 (0~2)
+
+# =============================================================================
+# Benchmark-specific Overrides
+# =============================================================================
+
+benchmarks:
+  bfcl:
+    use_native_tools: false         # Qwen3 supports function calling
+  swebench_verified_official_80:
+    max_tokens: 81920

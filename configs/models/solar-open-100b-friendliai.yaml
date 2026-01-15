@@ -1,8 +1,4 @@
-# Solar-Open-100B (vLLM External Endpoint)
-#
-# vLLM server is already running on RunPod.
-# Horangi connects via OpenAI-compatible HTTP endpoint.
-# Horangi does NOT manage vLLM lifecycle.
+# Grok-4.1 Fast Reasoning
 
 wandb:
   run_name: "Solar-Open-100B"
@@ -15,11 +11,10 @@ metadata:
   context_window: 131072
 
 model:
-  name: solar-open-100b
+  name: LGAI-EXAONE/K-EXAONE-236B-A23B
   client: litellm
-  provider: hosted_vllm
-  base_url: http://localhost:8008/v1
-  api_key_env: HOSTED_VLLM_API_KEY
+  provider: friendliai
+  api_key_env: FRIENDLI_TOKEN
 
   params:
     max_tokens: 120000
